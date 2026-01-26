@@ -458,13 +458,20 @@ async def proxy_chat_completions(request: Request):
                 async for line in response.aiter_lines():
                     if not line:
                         continue
+                    # Ensure we forward SSE lines correctly
+                    # Some upstream services might return raw JSON in chunks without "data: " prefix if not strict SSE
+                    # But DoubaoFreeApi should be returning standard SSE.
+                    
                     if line.startswith("data:") or line.startswith("event:") or line.startswith(":"):
                         yield f"{line}\n\n"
-                        continue
-                    if line.strip() == "[DONE]":
+                    elif line.strip() == "[DONE]":
                         yield "data: [DONE]\n\n"
-                        continue
-                    yield f"data: {line}\n\n"
+                    else:
+                        # Fallback: wrap raw content in data
+                        # Only if it looks like content
+                        if line.strip():
+                             yield f"data: {line}\n\n"
+                             
         except Exception as e:
             logger.error(f"Proxy error: {e}")
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
@@ -483,7 +490,8 @@ async def proxy_chat_completions(request: Request):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
+            "X-Accel-Buffering": "no", # Critical for Nginx/Baota
+            "Content-Type": "text/event-stream",
         },
     )
 

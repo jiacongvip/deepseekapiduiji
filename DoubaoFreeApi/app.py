@@ -47,6 +47,7 @@ async def startup():
             print("服务将继续启动，但游客模式可能不可用。请尝试手动配置session.json")
 
 app.include_router(router, prefix="/api")
+app.include_router(router, prefix="/v1")
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)

@@ -199,6 +199,9 @@ async def handle_sse(response: aiohttp.ClientResponse):
             evt, buffer = buffer.split('\n\n', 1)
             lines = evt.strip().split('\n')
             
+            # Debug: print every event
+            logger.debug(f"Raw SSE Event: {lines}")
+            
             event_type = ""
             data_str = ""
             
@@ -207,6 +210,10 @@ async def handle_sse(response: aiohttp.ClientResponse):
                     event_type = line[7:].strip()
                 elif line.startswith("data: "):
                     data_str = line[6:].strip()
+            
+            # Fallback: if no event type but has data, treat as message/chunk
+            if not event_type and data_str:
+                event_type = "implicit_message"
             
             if not event_type or not data_str:
                 continue
@@ -253,12 +260,21 @@ async def handle_sse(response: aiohttp.ClientResponse):
                         
                         # Handle image updates? (Need to investigate structure if needed)
                         
-                elif event_type == "message":
+                elif event_type == "message" or event_type == "implicit_message":
                     # Some responses use simple 'message' event for full content or delta
                     # This is a fallback based on observation of similar APIs
-                    content = data.get("content", "")
-                    if content and isinstance(content, str):
-                        texts.append(content)
+                    try:
+                        # Try to parse as JSON first
+                        if isinstance(data, dict):
+                             content = data.get("content", "")
+                             if content and isinstance(content, str):
+                                 texts.append(content)
+                        elif isinstance(data, str):
+                             texts.append(data)
+                    except:
+                        # If data is just a string
+                        if isinstance(data_str, str):
+                            texts.append(data_str)
                 
                 elif event_type == "SSE_REPLY_END":
                     # End of reply

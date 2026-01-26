@@ -1,14 +1,21 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Union, Any
 
 class CompletionRequest(BaseModel):
-    prompt: str
-    guest: bool
+    prompt: Optional[str] = None
+    guest: bool = False
     attachments: list[dict] = []
     conversation_id: Optional[str] = None
     section_id: Optional[str] = None
     use_deep_think: bool = False
     use_auto_cot: bool = False
+    
+    # OpenAI compatibility fields
+    messages: Optional[List[dict]] = None
+    model: Optional[str] = None
+    stream: Optional[bool] = False
+    max_tokens: Optional[int] = None
+    temperature: Optional[float] = None
 
 
 class AttachmentRequest(BaseModel):

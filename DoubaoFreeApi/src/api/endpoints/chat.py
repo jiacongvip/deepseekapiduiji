@@ -44,9 +44,22 @@ async def api_completions(
         except Exception as e:
             logger.warning(f"Failed to parse Authorization header as session config: {e}")
 
+    # Compatibility logic: Convert OpenAI messages to prompt
+    prompt = completion.prompt
+    if not prompt and completion.messages:
+        # Simple concatenation or taking the last user message
+        # For simplicity, we'll take the content of the last message from user
+        for msg in reversed(completion.messages):
+            if msg.get("role") == "user":
+                prompt = msg.get("content")
+                break
+    
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Field 'prompt' or 'messages' (with user content) is required")
+
     try:
         text, imgs, conv_id, msg_id, sec_id = await chat_completion(
-            prompt=completion.prompt,
+            prompt=prompt,
             guest=completion.guest,
             conversation_id=completion.conversation_id,
             section_id=completion.section_id,

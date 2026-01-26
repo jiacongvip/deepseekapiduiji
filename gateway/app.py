@@ -470,6 +470,10 @@ async def proxy_chat_completions(request: Request):
                         # Fallback: wrap raw content in data
                         # Only if it looks like content
                         if line.strip():
+                             # CAUTION: If the upstream sends partial JSON or raw text, we might be breaking it by wrapping in data:
+                             # But for standard SSE, newlines should be handled.
+                             # If line is just "}", it might be part of a previous JSON.
+                             # But aiter_lines() splits by newline.
                              yield f"data: {line}\n\n"
                              
         except Exception as e:
@@ -492,6 +496,8 @@ async def proxy_chat_completions(request: Request):
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no", # Critical for Nginx/Baota
             "Content-Type": "text/event-stream",
+            # Add CORS headers specifically for the stream response just in case
+            "Access-Control-Allow-Origin": "*",
         },
     )
 

@@ -257,7 +257,17 @@ async def handle_sse(response: aiohttp.ClientResponse):
                                 text_block = block.get("content", {}).get("text_block", {})
                                 if text := text_block.get("text"):
                                     texts.append(text)
+                                # 修复：处理只有 text_block 且为空的情况（可能包含在其他字段里）或直接是文本
                         
+                        # Handle tts_content as a fallback for text (Observed in logs: patch_value={"tts_content":"想"})
+                        if "tts_content" in patch_value:
+                            # Avoid duplicates if content_block also exists and has same text
+                            # But usually they come in separate patches or one is empty
+                            tts_text = patch_value["tts_content"]
+                            # Simple heuristic: if we haven't just appended this text
+                            if tts_text and (not texts or texts[-1] != tts_text):
+                                texts.append(tts_text)
+
                         # Handle image updates? (Need to investigate structure if needed)
                         
                 elif event_type == "message" or event_type == "implicit_message":

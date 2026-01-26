@@ -269,7 +269,7 @@ async def handle_sse(response: aiohttp.ClientResponse):
                             # But we need to be careful not to duplicate if content_block also fired.
                             
                             # Log to see what's happening
-                            # logger.debug(f"TTS Content: {tts_text}")
+                            logger.debug(f"TTS Content found: {tts_text}")
                             
                             if tts_text:
                                 texts.append(tts_text)
@@ -302,8 +302,9 @@ async def handle_sse(response: aiohttp.ClientResponse):
                                      texts.append(str(content_str))
                              except:
                                  # Fallback if not JSON
-                                 texts.append(content_str)
-                        
+                                 # Clean up potential JSON artifacts if it was a failed parse but still meaningful
+                                 texts.append(str(content_str))
+
                 elif event_type == "message" or event_type == "implicit_message":
                     # Some responses use simple 'message' event for full content or delta
                     # This is a fallback based on observation of similar APIs

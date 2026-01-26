@@ -1,4 +1,4 @@
-from src.pool.session_pool import session_pool
+from src.pool.session_pool import session_pool, DoubaoSession
 from requests_aws4auth import AWS4Auth
 from fastapi import HTTPException
 from loguru import logger
@@ -18,12 +18,17 @@ async def chat_completion(
     conversation_id: str = None, 
     attachments: list[dict] = [], 
     use_auto_cot: bool = False, 
-    use_deep_think: bool = False
+    use_deep_think: bool = False,
+    session_override: DoubaoSession = None
 ):
     # 获取会话配置
-    session = session_pool.get_session(conversation_id, guest)
+    if session_override:
+        session = session_override
+    else:
+        session = session_pool.get_session(conversation_id, guest)
+        
     if not session:
-        raise HTTPException(status_code=404, detail=f"会话配置不存在,请检查 session.config 文件")
+        raise HTTPException(status_code=404, detail=f"会话配置不存在,请检查 session.config 文件或提供有效的 Token")
     
     # Extract fp from cookie
     fp = ""

@@ -261,13 +261,17 @@ async def handle_sse(response: aiohttp.ClientResponse):
                         
                         # Handle tts_content as a fallback for text (Observed in logs: patch_value={"tts_content":"想"})
                         if "tts_content" in patch_value:
-                            # Avoid duplicates if content_block also exists and has same text
-                            # But usually they come in separate patches or one is empty
                             tts_text = patch_value["tts_content"]
-                            # Simple heuristic: if we haven't just appended this text
-                            if tts_text and (not texts or texts[-1] != tts_text):
-                                # Split by chars to detect if we are appending a single char or a full string that grows
-                                # Doubao TTS chunks are usually single chars.
+                            # Doubao tts_content often contains the *entire* sentence accumulated so far, or just a chunk.
+                            # The log showed single chars: "想", "做", "数字"...
+                            # But sometimes it might be accumulated.
+                            # Given the logs showed distinct single chars, we append them.
+                            # But we need to be careful not to duplicate if content_block also fired.
+                            
+                            # Log to see what's happening
+                            # logger.debug(f"TTS Content: {tts_text}")
+                            
+                            if tts_text:
                                 texts.append(tts_text)
 
                 elif event_type == "FULL_MSG_NOTIFY":

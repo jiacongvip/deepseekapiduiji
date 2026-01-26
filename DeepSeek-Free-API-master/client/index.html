@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek API Test</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f5f5f7; }
+        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; }
+        .config-group { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #666; }
+        input[type="text"] { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        #chat-history { height: 400px; overflow-y: auto; border: 1px solid #eee; padding: 10px; margin-bottom: 20px; border-radius: 6px; background: #fafafa; }
+        .message { margin-bottom: 10px; padding: 10px; border-radius: 8px; max-width: 80%; word-wrap: break-word; }
+        .user-message { background: #007AFF; color: white; margin-left: auto; }
+        .bot-message { background: #E5E5EA; color: black; margin-right: auto; }
+        .input-group { display: flex; gap: 10px; }
+        textarea { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; resize: none; height: 50px; }
+        button { padding: 0 20px; background: #007AFF; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; }
+        .error { color: red; font-size: 0.9em; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DeepSeek API Test</h1>
+        
+        <div class="config-group">
+            <label for="apiUrl">API URL</label>
+            <input type="text" id="apiUrl" value="http://localhost:56789/v1/chat/completions">
+            
+            <label for="apiToken">Token</label>
+            <input type="text" id="apiToken" value="L8eI6hOXZtX+1l7OETO2852cVJ9fPYpNs/+p3iUrI6duqJj1R81xNecR/NmWlZxq">
+        </div>
+
+        <div id="chat-history"></div>
+
+        <div class="input-group">
+            <textarea id="messageInput" placeholder="Type a message..."></textarea>
+            <button id="sendBtn" onclick="sendMessage()">Send</button>
+        </div>
+        <div id="status" class="error"></div>
+    </div>
+
+    <script>
+        const chatHistory = document.getElementById('chat-history');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const statusDiv = document.getElementById('status');
+        const apiUrlInput = document.getElementById('apiUrl');
+        const apiTokenInput = document.getElementById('apiToken');
+
+        async function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text) return;
+
+            const apiUrl = apiUrlInput.value.trim();
+            const token = apiTokenInput.value.trim();
+
+            if (!apiUrl || !token) {
+                statusDiv.textContent = 'Please check API URL and Token';
+                return;
+            }
+
+            statusDiv.textContent = '';
+            messageInput.disabled = true;
+            sendBtn.disabled = true;
+
+            // Add user message
+            addMessage(text, 'user');
+            messageInput.value = '';
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        model: "deepseek-chat",
+                        messages: [{"role": "user", "content": text}],
+                        stream: false
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                const reply = data.choices[0].message.content;
+                addMessage(reply, 'bot');
+
+            } catch (error) {
+                console.error(error);
+                statusDiv.textContent = error.message;
+                addMessage(`Error: ${error.message}`, 'bot');
+            } finally {
+                messageInput.disabled = false;
+                sendBtn.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        function addMessage(text, sender) {
+            const div = document.createElement('div');
+            div.className = `message ${sender}-message`;
+            div.textContent = text;
+            chatHistory.appendChild(div);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        // Handle Enter key
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

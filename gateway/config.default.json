@@ -1,0 +1,115 @@
+{
+    "deepseek": {
+        "url": "http://deepseek-free-api:8000",
+        "token": "",
+        "models": [
+            "deepseek-chat",
+            "deepseek-coder",
+            "deepseek-think",
+            "deepseek-r1",
+            "deepseek-search",
+            "deepseek-r1-search",
+            "deepseek-think-search",
+            "deepseek-think-silent",
+            "deepseek-r1-silent",
+            "deepseek-search-silent",
+            "deepseek-think-fold",
+            "deepseek-r1-fold"
+        ]
+    },
+    "glm": {
+        "url": "http://glm-free-api:8000",
+        "token": "",
+        "models": [
+            "glm-4-plus",
+            "glm-4-0520",
+            "glm-4",
+            "glm-4-air",
+            "glm-4-airx",
+            "glm-4-long",
+            "glm-4-flashx",
+            "glm-4-flash",
+            "glm-4-9b",
+            "glm-4.5",
+            "glm-4.5-x",
+            "glm-4.5-air",
+            "glm-4.6",
+            "glm-4-zero",
+            "glm-4-think",
+            "glm-4-deepresearch"
+        ]
+    },
+    "kimi": {
+        "url": "http://kimi-free-api:8000",
+        "token": "",
+        "models": [
+            "kimi",
+            "kimi-search",
+            "kimi-research",
+            "kimi-k1",
+            "kimi-math",
+            "kimi-silent",
+            "kimi-k2-thinking",
+            "kimi-latest",
+            "moonshot-v1-8k",
+            "moonshot-v1-32k",
+            "moonshot-v1-128k"
+        ]
+    },
+    "qwen": {
+        "url": "http://qwen-free-api:8000",
+        "token": "",
+        "models": [
+            "qwen-turbo",
+            "qwen-plus",
+            "qwen-max",
+            "qwen-long",
+            "qwen3-235b-a22b",
+            "qwen3-coder-plus",
+            "qwen-plus-latest"
+        ]
+    },
+    "doubao": {
+        "url": "http://doubao-free-api:8000",
+        "token": "",
+        "models": [
+            "doubao-pro-4k",
+            "doubao-pro-32k",
+            "doubao-lite-4k",
+            "doubao-lite-32k"
+        ]
+    },
+    "yuanbao": {
+        "url": "http://yuanbao-free-api:8003",
+        "token": "",
+        "agent_id": "",
+        "hy_user": "",
+        "hy_token": "",
+        "models": [
+            "yuanbao",
+            "deepseek-v3",
+            "deepseek-r1",
+            "deepseek-v3-search",
+            "deepseek-r1-search",
+            "hunyuan",
+            "hunyuan-t1",
+            "hunyuan-search",
+            "hunyuan-t1-search"
+        ]
+    },
+    "baidu": {
+        "url": "http://baidu-free-api:8000",
+        "token": [
+            "cookie_string_1",
+            "cookie_string_2"
+        ],
+        "models": [
+            "ernie-4.0-8k",
+            "ernie-3.5-8k",
+            "ernie-speed-128k",
+            "ernie-lite-8k",
+            "ernie-tiny-8k",
+            "DeepSeek-R1"
+        ]
+    }
+}

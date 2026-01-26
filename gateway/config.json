@@ -1,0 +1,88 @@
+{
+    "deepseek": {
+        "url": "http://deepseek-free-api:8000",
+        "token": [
+            "L8eI6hOXZtX+1l7OETO2852cVJ9fPYpNs/+p3iUrI6duqJj1R81xNecR/NmWlZxq"
+        ],
+        "models": [
+            "deepseek-chat",
+            "deepseek-r1",
+            "deepseek-v3-search",
+            "deepseek-r1-search"
+        ]
+    },
+    "glm": {
+        "url": "http://glm-free-api:8000",
+        "token": [
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJB5bCP6JGxIPCflKUxNTg14oCmIiwiZXhwIjoxNzg0MTI3Mjc1LCJuYmYiOjE3Njg1NzUyNzUsImlhdCI6MTc2ODU3NTI3NSwianRpIjoiZDI4ZGIyNWFkNjAyNGIyM2JkNDBjODdmZjVhMzZiZTgiLCJ1aWQiOiI2OTFjMmYyN2Y4ZmJiMWQ1MDhkYTA1MTYiLCJkZXZpY2VfaWQiOiI5NzZkYjQ1MzNmNmU0MWM5OTI2Y2E4MDU4Mjc4YjI2ZiIsInR5cGUiOiJyZWZyZXNoIn0.g42Av21KEXHfALta6IiIMoArBmDIRqJ6c2MY-WFWK2c"
+        ],
+        "models": [
+            "glm-4"
+        ]
+    },
+    "kimi": {
+        "url": "http://kimi-free-api:8000",
+        "token": [
+            "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ1c2VyLWNlbnRlciIsImV4cCI6MTc3NjQxNjY5MiwiaWF0IjoxNzY4NjQwNjkyLCJqdGkiOiJkNWxsMWQwYzg2c2VxNmEwdjNsZyIsInR5cCI6InJlZnJlc2giLCJhcHBfaWQiOiJraW1pIiwic3ViIjoiZDVsbDFkMGM4NnNlcTZhMHYzamciLCJzcGFjZV9pZCI6ImQ1bGwxZDBjODZzZXE2YTB2M2owIiwiYWJzdHJhY3RfdXNlcl9pZCI6ImQ1bGwxZDBjODZzZXE2YTB2M2lnIiwiZGV2aWNlX2lkIjoiNzU5NjI1MzU4NjkxNzUzOTU4OSIsInJlZ2lvbiI6ImNuIiwibWVtYmVyc2hpcCI6eyJsZXZlbCI6MTB9fQ.8N8TXhuyJ6F5h0AI-EakYLBAEJJK-9VsajQM121XPt1f_Wa3B3qLlGBBSgU5xjqT2zPWUxwBCgQQ_sqyLo9iPw"
+        ],
+        "models": [
+            "moonshot-v1-8k",
+            "moonshot-v1-32k"
+        ]
+    },
+    "qwen": {
+        "url": "http://qwen-free-api:8000",
+        "token": [
+            "LoRDi1D0p1jiSUS8TfqKNFQ0U*ReYz*trtMUHEnF6AFvL_vsNhJzA*vHibqurvxR0"
+        ],
+        "models": [
+            "qwen-turbo",
+            "qwen-plus"
+        ]
+    },
+    "doubao": {
+        "url": "http://doubao-free-api:8000",
+        "token": [
+            "{\"cookie\": \"hook_slardar_session_id=20260114134938577223E729648E0151A3; i18next=zh; _ga=GA1.1.1129814350.1766393613; _ga_G8EP5CG8VZ=GS2.1.s1766479325$o3$g1$t1766479499$j60$l0$h0; flow_ssr_sidebar_expand=1; s_v_web_id=verify_mkby4ki3_TANyyisy_z9K9_49Ao_8JJP_4qmUIcAz6ANj; passport_csrf_token=dd378c8a1374431e8c831f87c45e59d9; passport_csrf_token_default=dd378c8a1374431e8c831f87c45e59d9; is_staff_user=false; ttcid=80a0c7548f2949b69cfd1f738a2e077213; tt_scid=-cgr273I8wJw.vI6hhts08c2I5nse7zi5YeAK1wALEHsdgGmH6hKxzaMO1G22vC820a8; msToken=RcsXOJ-r95QSbtb7lB-ojJVJOcisiSBBCoxy1W1UfsO_yOVB75t1bnRGDDSM98YXVN0yNjRhUcImew9P2PB4a7kN6SwQV4JO1XzcWESMGh4P7rVISeRVBtV7T-jbKpGb-Mw=; passport_mfa_token=Cjik57OijoYu6dP9pfv2%2FqpfYJ9EWlb%2FJCKnkyXgK6wh4NvjS23cKZpW6MjOjVPsJgxOrg8OZxcwJxpKCjwAAAAAAAAAAAAAT%2FJjpGQUbkplxJFMgAbDXm9Z4bvqIALnnhOuV6v1YD%2FGC6AYzlqqwBtCG3OQekH8P%2F0Q7OyGDhj2sdFsIAIiAQNxtp8T; d_ticket=3237bd14597c944f9744563f34d07381b5967; passport_auth_status=a86170e5d9ffbcefee21f25c3278ac63%2C; passport_auth_status_ss=a86170e5d9ffbcefee21f25c3278ac63%2C; odin_tt=41154e3bf21da045f69eb26ab745a8d50af5bab86949fa92491321cc1375b25c25fe451746778e882c7a3b487e2ed73c8770e86fc2973c45526a70b12e73da6c; n_mh=4wXNWA33ofTtrSk9R36ibgR1quckuD98h7qNcIQZWlE; sid_guard=bef9f131f6a3e55c21aff1bce652bf43%7C1768368764%7C2592000%7CFri%2C+13-Feb-2026+05%3A32%3A44+GMT; uid_tt=a4f12016dfa64a14cf79070e5bf82549; uid_tt_ss=a4f12016dfa64a14cf79070e5bf82549; sid_tt=bef9f131f6a3e55c21aff1bce652bf43; sessionid=bef9f131f6a3e55c21aff1bce652bf43; sessionid_ss=bef9f131f6a3e55c21aff1bce652bf43; session_tlb_tag=sttt%7C4%7CvvnxMfaj5Vwhr_G85lK_Q_________-8ixSNnVBG_kqR0cB3UWCIz3_H4OFub3En_ryxlyLosS4%3D; sid_ucp_v1=1.0.0-KDlmOWMwMzk2MTNlMjA4OWZiYmFmOGI2M2Q0NDkxM2JjZGNhNmM5ODAKHwjkwMCR6MwnEPzUnMsGGMKxHiAMMObIoLsGOAdA9AcaAmxxIiBiZWY5ZjEzMWY2YTNlNTVjMjFhZmYxYmNlNjUyYmY0Mw; ssid_ucp_v1=1.0.0-KDlmOWMwMzk2MTNlMjA4OWZiYmFmOGI2M2Q0NDkxM2JjZGNhNmM5ODAKHwjkwMCR6MwnEPzUnMsGGMKxHiAMMObIoLsGOAdA9AcaAmxxIiBiZWY5ZjEzMWY2YTNlNTVjMjFhZmYxYmNlNjUyYmY0Mw; ttwid=1%7CGJYNmxwIh7lX0NBGZO9yuzc2Rq7ZFEEmncFdUfWCVQA%7C1768369778%7C060f4d9e845b69e785d2f0a52aa5bfa488bf40ca6cccc9e0e0df14b598ecfa15; passport_fe_beating_status=true\", \"device_id\": \"7586602724335535679\", \"tea_uuid\": \"7594387748275389952\", \"web_id\": \"7594387748275389952\", \"room_id\": \"35795075100759810\", \"x_flow_trace\": \"04-0017a06b72a1779900107e29f6224135-001ccf67ac43fa38-01\"}"
+        ],
+        "models": [
+            "doubao-pro-4k",
+            "doubao-pro-32k",
+            "doubao-lite-4k",
+            "doubao-lite-32k"
+        ]
+    },
+    "yuanbao": {
+        "url": "http://yuanbao-free-api:8003",
+        "token": [
+            {
+                "hy_user": "e0fb33f6e3ac4111a56b12e90f2e62a6",
+                "hy_token": "yqXKWLlTP+LYpuiErQRVXpYNvm3qdiTLnFtm8XiGeTjn0kpilApgb/gxXzx7I2mwlKXtlb/9xTtOt/nCzbUplA==",
+                "agent_id": "naQivTmsDa"
+            }
+        ],
+        "agent_id": "",
+        "hy_user": "",
+        "hy_token": "",
+        "models": [
+            "yuanbao",
+            "deepseek-v3",
+            "deepseek-r1",
+            "deepseek-v3-search",
+            "deepseek-r1-search",
+            "hunyuan-t1"
+        ]
+    },
+    "baidu": {
+        "url": "http://baidu-free-api:8000",
+        "token": [
+            "BIDUPSID=8E1A58212B84C0E1B8BFF852704E94E9; PSTM=1762684322; BDUSS=3BtUjBJZTF5QjR5R3pnNzE0WXhQUHlCLWtTVmowYmtjMUZyY1U4VkQ2bTBDRVZwSVFBQUFBJCQAAAAAAAAAAAEAAAAGvP40TVBDtLTKvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALR7HWm0ex1pV; BDUSS_BFESS=3BtUjBJZTF5QjR5R3pnNzE0WXhQUHlCLWtTVmowYmtjMUZyY1U4VkQ2bTBDRVZwSVFBQUFBJCQAAAAAAAAAAAEAAAAGvP40TVBDtLTKvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALR7HWm0ex1pV; BAIDUID=7A89793EA6BCEB9CB9BD935F9943B47D:FG=1; BA_HECTOR=a420ag21800h2g04ag01akag00a5271kmu0l427; BAIDUID_BFESS=7A89793EA6BCEB9CB9BD935F9943B47D:FG=1; BDORZ=B490B5EBF6F3CD402E515D22BCDA1598; BDRCVFR[feWj1Vr5u3D]=I67x6TjHwwYf0; delPer=0; PSINO=3; ZFY=fW94RqLqRHkL1b62E3cPS81AzOyA:A3VwBaM7FPJ:BYRU:C; H_PS_PSSID=60274_63146_66578_66682_66694_66847_67050_67080_67121_67127_67146_67154_67210_67218_67227_67237_67231_67233_67242_67268_67272_67282_67251_67295_67319_67317_67314_67322_67321_67305_67429_67449_67472_67461; H_WISE_SIDS=60274_63146_66578_66694_66847_67050_67080_67121_67127_67154_67210_67218_67227_67237_67231_67233_67242_67268_67272_67282_67251_67295_67319_67317_67314_67322_67321_67305_67340_67429_67449_67472_67461"
+        ],
+        "models": [
+            "DeepSeek-R1",
+            "ernie-4.0-8k",
+            "ernie-3.5-8k",
+            "ernie-speed-128k"
+        ]
+    }
+}

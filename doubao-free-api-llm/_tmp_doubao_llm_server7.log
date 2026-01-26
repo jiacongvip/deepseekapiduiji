@@ -1,0 +1,53 @@
+[32m[2026-01-14 17:05:44.666][success][index<967,20>] Server initialized[39m
+[96m[2026-01-14 17:05:44.668][info][index<2565,18>] <<<< doubao free server >>>>[39m
+[96m[2026-01-14 17:05:44.668][info][index<2566,18>] Version: 0.0.2[39m
+[96m[2026-01-14 17:05:44.669][info][index<2567,18>] Process id: 41060[39m
+[96m[2026-01-14 17:05:44.669][info][index<2568,18>] Environment: dev[39m
+[96m[2026-01-14 17:05:44.669][info][index<2569,18>] Service name: doubao-free-api[39m
+[96m[2026-01-14 17:05:44.669][info][index<991,22>] Route  attached[39m
+[96m[2026-01-14 17:05:44.669][info][index<991,22>] Route /v1/chat attached[39m
+[96m[2026-01-14 17:05:44.669][info][index<991,22>] Route /ping attached[39m
+[96m[2026-01-14 17:05:44.669][info][index<991,22>] Route /token attached[39m
+[96m[2026-01-14 17:05:44.669][info][index<991,22>] Route /v1 attached[39m
+[32m[2026-01-14 17:05:44.672][success][index<1080,20>] Server listening on port 18086 (127.0.0.1)[39m
+[32m[2026-01-14 17:05:44.672][success][index<2574,24>] Service startup completed (3ms)[39m
+[96m[2026-01-14 17:05:44.730][info][index<1017,26>] -> GET /ping[39m
+[96m[2026-01-14 17:05:44.731][info][index<987,30>] <- GET /ping 0ms[39m
+[96m[2026-01-14 17:05:44.840][info][index<1017,26>] -> POST /v1/chat/completions[39m
+[96m[2026-01-14 17:05:44.841][info][index<1344,20>] [ { role: 'user', content: '你好，用一句话介绍你自己' } ][39m
+[96m[2026-01-14 17:05:44.841][info][index<1514,18>] 本次请求上传：0个文件[39m
+[96m[2026-01-14 17:05:44.841][info][index<1530,20>] 
+透传内容：
+你好，用一句话介绍你自己
+[39m
+[96m[2026-01-14 17:05:44.842][info][index<1310,20>] 请求参数: {"aid":"497858","device_id":"7586602724335535679","device_platform":"web","language":"zh","pc_version":"3.1.2","pkg_type":"release_version","real_aid":"497858","samantha_web":1,"tea_uuid":"7594387748275389952","version_code":"20800","web_id":"7594387748275389952","region":"CN","sys_region":"CN","fp":"verify_mkby4ki3_TANyyisy_z9K9_49Ao_8JJP_4qmUIcAz6ANj","use-olympus-account":1}[39m
+[37m[2026-01-14 17:05:45.488][debug][index<1718,24>] SSE Event: event_type=2002, has_event_data=true[39m
+[37m[2026-01-14 17:05:45.488][debug][index<1740,26>] Skipping event_type: 2002[39m
+[37m[2026-01-14 17:05:45.968][debug][index<1718,24>] SSE Event: event_type=2010, has_event_data=true[39m
+[37m[2026-01-14 17:05:45.968][debug][index<1740,26>] Skipping event_type: 2010[39m
+[37m[2026-01-14 17:05:46.629][debug][index<1718,24>] SSE Event: event_type=2001, has_event_data=true[39m
+[37m[2026-01-14 17:05:46.630][debug][index<1782,28>] Extracted text: 我... (长度: 1)[39m
+[37m[2026-01-14 17:05:46.732][debug][index<1718,24>] SSE Event: event_type=2001, has_event_data=true[39m
+[37m[2026-01-14 17:05:46.732][debug][index<1782,28>] Extracted text: 是豆包，一个能... (长度: 7)[39m
+[37m[2026-01-14 17:05:46.837][debug][index<1718,24>] SSE Event: event_type=2001, has_event_data=true[39m
+[37m[2026-01-14 17:05:46.837][debug][index<1782,28>] Extracted text: 为你提供全栈开发解决方案... (长度: 12)[39m
+[37m[2026-01-14 17:05:46.990][debug][index<1718,24>] SSE Event: event_type=2001, has_event_data=true[39m
+[37m[2026-01-14 17:05:46.991][debug][index<1782,28>] Extracted text: 、育儿实用攻略等多... (长度: 9)[39m
+[37m[2026-01-14 17:05:47.158][debug][index<1718,24>] SSE Event: event_type=2001, has_event_data=true[39m
+[37m[2026-01-14 17:05:47.158][debug][index<1782,28>] Extracted text: 领域帮助的智能助手。... (长度: 10)[39m
+[37m[2026-01-14 17:05:47.317][debug][index<1718,24>] SSE Event: event_type=2001, has_event_data=true[39m
+[37m[2026-01-14 17:05:47.317][debug][index<1782,28>] Extracted text: 
+
+要不要我根据你的需求... (长度: 12)[39m
+[37m[2026-01-14 17:05:47.426][debug][index<1718,24>] SSE Event: event_type=2001, has_event_data=true[39m
+[37m[2026-01-14 17:05:47.427][debug][index<1782,28>] Extracted text: ，整理一份**专属的... (长度: 10)[39m
+[37m[2026-01-14 17:05:47.609][debug][index<1718,24>] SSE Event: event_type=2001, has_event_data=true[39m
+[37m[2026-01-14 17:05:47.609][debug][index<1782,28>] Extracted text: 常用功能清单... (长度: 6)[39m
+[37m[2026-01-14 17:05:47.609][debug][index<1718,24>] SSE Event: event_type=2001, has_event_data=true[39m
+[37m[2026-01-14 17:05:47.609][debug][index<1782,28>] Extracted text: **？... (长度: 3)[39m
+[37m[2026-01-14 17:05:47.725][debug][index<1718,24>] SSE Event: event_type=2001, has_event_data=true[39m
+[37m[2026-01-14 17:05:47.725][debug][index<1759,26>] Stream finished, content length: 70, references: 0[39m
+[32m[2026-01-14 17:05:47.726][success][index<1384,20>] Stream has completed transfer 2239ms[39m
+[96m[2026-01-14 17:05:47.728][info][index<987,30>] <- POST /v1/chat/completions 2888ms[39m
+[93m[2026-01-14 17:05:47.744][warning][index<689,18>] received kill signal[39m
+[96m[2026-01-14 17:05:47.745][info][index<685,18>] Service exit[39m

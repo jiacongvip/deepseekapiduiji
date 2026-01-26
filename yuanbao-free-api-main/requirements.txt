@@ -1,0 +1,7 @@
+beautifulsoup4
+fastapi
+httpx
+pydantic
+Requests
+sse_starlette
+uvicorn

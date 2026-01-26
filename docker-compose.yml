@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  gateway:
+    container_name: gateway
+    build: ./gateway
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./gateway:/app
+    restart: unless-stopped
+    depends_on:
+      - deepseek-free-api
+      - glm-free-api
+      - kimi-free-api
+      - qwen-free-api
+      - doubao-free-api
+      - yuanbao-free-api
+      - baidu-free-api
+
+  deepseek-free-api:
+    container_name: deepseek-free-api
+    build: ./DeepSeek-Free-API-master
+    ports:
+      - "8001:8000"
+    environment:
+      - PORT=8000
+    restart: unless-stopped
+
+  glm-free-api:
+    container_name: glm-free-api
+    build: ./GLM-Free-API-master
+    ports:
+      - "8002:8000"
+    environment:
+      - PORT=8000
+    restart: unless-stopped
+
+  kimi-free-api:
+    container_name: kimi-free-api
+    build: ./Kimi-Free-API-master
+    ports:
+      - "8003:8000"
+    environment:
+      - PORT=8000
+    restart: unless-stopped
+
+  qwen-free-api:
+    container_name: qwen-free-api
+    build: ./Qwen-Free-API-master
+    ports:
+      - "8004:8000"
+    environment:
+      - PORT=8000
+    restart: unless-stopped
+
+  doubao-free-api:
+    container_name: doubao-free-api
+    build: ./DoubaoFreeApi
+    ports:
+      - "8005:8000"
+    environment:
+      - PORT=8000
+    restart: unless-stopped
+
+  yuanbao-free-api:
+    container_name: yuanbao-free-api
+    build: ./yuanbao-free-api-main
+    ports:
+      - "8006:8003"
+    environment:
+      - PORT=8003
+    restart: unless-stopped
+
+  baidu-free-api:
+    container_name: baidu-free-api
+    build: ./BaiDu-AI-main
+    ports:
+      - "8007:8000"
+    environment:
+      - PORT=8000
+      - BAIDU_COOKIE=  # 可以在这里填入 cookie，或者挂载 cookie.txt
+    volumes:
+      - ./BaiDu-AI-main/cookie.txt:/app/cookie.txt
+    restart: unless-stopped

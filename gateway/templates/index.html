@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI API Gateway 管理后台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .prose pre { background: #f3f4f6; padding: 1em; border-radius: 0.5em; overflow-x: auto; }
+        .prose code { background: #f3f4f6; padding: 0.2em 0.4em; border-radius: 0.25em; font-size: 0.9em; }
+        /* Tailwind preflight resets links/lists; restore basic Markdown readability */
+        .prose a { color: #2563eb; text-decoration: underline; word-break: break-word; }
+        .prose a:hover { color: #1d4ed8; }
+        .prose ol { list-style: decimal; padding-left: 1.25rem; }
+        .prose ul { list-style: disc; padding-left: 1.25rem; }
+        .prose li { margin: 0.25rem 0; }
+        .prose p { margin: 0.5rem 0; }
+        .prose strong { font-weight: 600; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8 text-gray-800">AI API Gateway 配置管理</h1>
+        
+        <div id="services-container" class="space-y-6">
+            <!-- Services will be injected here -->
+        </div>
+
+        <div class="mt-8 flex justify-end gap-4">
+            <button onclick="openApiDocs()" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded shadow-lg transition duration-200 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                API 调用说明
+            </button>
+            <button onclick="saveConfig()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow-lg transition duration-200">
+                保存所有配置
+            </button>
+        </div>
+    </div>
+
+    <!-- API Docs Modal -->
+    <div id="api-docs-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 flex">
+        <div class="bg-white w-11/12 max-w-4xl rounded-lg shadow-2xl flex flex-col relative max-h-[90vh]">
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
+                <h3 class="text-lg font-bold text-gray-800">API 调用指南</h3>
+                <button onclick="closeApiDocs()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto prose prose-sm max-w-none text-gray-700">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                    <p class="font-bold text-blue-700">OpenAI 兼容接口</p>
+                    <p class="text-sm text-blue-600">本服务提供完全兼容 OpenAI 格式的接口，您可以直接使用 OpenAI SDK 或任何支持 OpenAI 的客户端。</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-base font-bold mb-2">基础信息</h4>
+                        <ul class="list-disc pl-5 space-y-1 text-sm">
+                            <li><strong>Base URL:</strong> <code>http://8.137.117.8:8888/v1</code></li>
+                            <li><strong>API Key:</strong> 任意非空字符串 (例如: <code>sk-123456</code>) <br><span class="text-xs text-gray-500">*鉴权已在后台配置，此处仅为满足客户端格式要求</span></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="text-base font-bold mb-2">支持模型</h4>
+                        <p class="text-xs text-gray-500 mb-2">模型名称将自动路由到对应的服务。以下是一些常用模型：</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="bg-gray-100 px-2 py-1 rounded text-xs font-mono">deepseek-chat</span>
+                            <span class="bg-gray-100 px-2 py-1 rounded text-xs font-mono">deepseek-r1</span>
+                            <span class="bg-gray-100 px-2 py-1 rounded text-xs font-mono">glm-4.5</span>
+                            <span class="bg-gray-100 px-2 py-1 rounded text-xs font-mono">kimi-latest</span>
+                            <span class="bg-gray-100 px-2 py-1 rounded text-xs font-mono">qwen-plus</span>
+                            <span class="bg-gray-100 px-2 py-1 rounded text-xs font-mono">doubao-pro-4k</span>
+                            <span class="bg-gray-100 px-2 py-1 rounded text-xs font-mono">ernie-4.0-8k</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-green-50 border-l-4 border-green-500 p-4 mt-6">
+                    <p class="font-bold text-green-700">NewAPI / OneAPI 接入指南</p>
+                    <p class="text-sm text-green-600 mb-2">本系统完美兼容 NewAPI 和 OneAPI，您可以轻松将其添加为一个新的渠道。</p>
+                    <ul class="list-disc pl-5 space-y-1 text-sm text-green-800">
+                        <li><strong>渠道类型 (Channel Type):</strong> 选择 <code>OpenAI</code> (或自定义 OpenAI)</li>
+                        <li><strong>代理地址 (Base URL):</strong> <code>http://8.137.117.8:8888</code> <br><span class="text-xs text-gray-500">*通常系统会自动拼接 /v1，如测试不通请尝试完整路径 <code>http://8.137.117.8:8888/v1</code></span></li>
+                        <li><strong>密钥 (Key):</strong> 任意非空字符串 (例如: <code>sk-newapi</code>)</li>
+                        <li><strong>模型 (Models):</strong> 手动输入支持的模型名称 (建议复制下方完整列表)</li>
+                    </ul>
+                </div>
+
+                <h4 class="text-base font-bold mt-6 mb-2">调用示例 (Python)</h4>
+                <pre><code class="language-python">from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://8.137.117.8:8888/v1",  # 您的部署地址
+    api_key="sk-any-string"               # 任意填写
+)
+
+response = client.chat.completions.create(
+    model="deepseek-chat",                # 替换为你想调用的模型
+    messages=[
+        {"role": "user", "content": "你好，请介绍一下你自己"}
+    ],
+    stream=True                           # 推荐开启流式
+)
+
+for chunk in response:
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="", flush=True)</code></pre>
+
+                <h4 class="text-base font-bold mt-6 mb-2">调用示例 (cURL)</h4>
+                <pre><code class="language-bash">curl http://localhost:8888/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-any-string" \
+  -d '{
+    "model": "deepseek-chat",
+    "messages": [
+      {"role": "user", "content": "Hello!"}
+    ],
+    "stream": true
+  }'</code></pre>
+            </div>
+            <div class="p-4 border-t bg-gray-50 rounded-b-lg flex justify-end">
+                <button onclick="closeApiDocs()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="chat-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 flex">
+        <div class="bg-white w-11/12 max-w-4xl h-5/6 rounded-lg shadow-2xl flex flex-col relative">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800" id="chat-title">Chat Test</h3>
+                    <p class="text-xs text-gray-500" id="chat-subtitle">Model: -</p>
+                </div>
+                <button onclick="closeChat()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            </div>
+            
+            <!-- Chat History -->
+            <div id="chat-history" class="flex-1 overflow-y-auto p-6 space-y-4">
+                <!-- Messages will appear here -->
+                <div class="text-center text-gray-400 mt-10">在这里测试你的 AI 模型</div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-4 border-t bg-gray-50 rounded-b-lg">
+                <div class="flex gap-2">
+                    <input type="text" id="chat-input" 
+                        class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                        placeholder="输入消息，按 Enter 发送..." 
+                        autocomplete="off">
+                    <button onclick="sendMessage()" id="send-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded-lg transition-colors">
+                        发送
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 flex">
+        <div class="bg-white w-11/12 max-w-2xl rounded-lg shadow-2xl flex flex-col relative max-h-[90vh]">
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
+                <h3 class="text-lg font-bold text-gray-800" id="help-title">获取 Token 指南</h3>
+                <button onclick="closeHelp()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            </div>
+            <div id="help-content" class="p-6 overflow-y-auto prose prose-sm max-w-none text-gray-700">
+                <!-- Content injected here -->
+            </div>
+            <div class="p-4 border-t bg-gray-50 rounded-b-lg flex justify-end">
+                <button onclick="closeHelp()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Yuanbao Login Modal -->
+    <div id="yuanbao-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 flex">
+        <div class="bg-white rounded-lg shadow-2xl p-6 w-96 text-center relative">
+            <button onclick="closeYuanbaoLogin()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+            
+            <h3 class="text-xl font-bold mb-4 text-gray-800">微信扫码登录元宝</h3>
+            
+            <div id="yuanbao-qr-container" class="flex justify-center mb-4 min-h-[200px] items-center">
+                <div class="animate-pulse bg-gray-200 w-48 h-48 rounded"></div>
+            </div>
+            
+            <p id="yuanbao-status" class="text-sm text-gray-600 mb-4">正在获取二维码...</p>
+            
+            <div class="text-xs text-gray-400 text-left bg-gray-50 p-3 rounded">
+                <p>1. 请使用微信扫描上方二维码。</p>
+                <p>2. 在手机上确认登录。</p>
+                <p>3. 登录成功后，Cookie 将自动填入。</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const helpDocs = {
+            deepseek: `
+                <ol class="list-decimal pl-5 space-y-2">
+                    <li>访问 <a href="https://chat.deepseek.com/" target="_blank">DeepSeek 官网</a> 并登录。</li>
+                    <li>按 <code>F12</code> 打开开发者工具，切换到 <strong>Application</strong> (应用) 选项卡。</li>
+                    <li>在左侧菜单找到 <strong>Local Storage</strong> (本地存储)，点击 <code>https://chat.deepseek.com</code>。</li>
+                    <li>找到 Key 为 <code>userToken</code> 的项，复制其 <strong>Value</strong> 值。</li>
+                </ol>
+                <div class="mt-2 p-2 bg-gray-100 rounded text-xs text-gray-500 break-all">示例: {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", ...} (注意：通常只需要 value 字段里的 token 字符串，但如果复制了整个 JSON 也可以尝试)</div>
+            `,
+            glm: `
+                <ol class="list-decimal pl-5 space-y-2">
+                    <li>访问 <a href="https://chatglm.cn/" target="_blank">智谱清言</a> 并登录。</li>
+                    <li>按 <code>F12</code> 打开开发者工具，切换到 <strong>Application</strong> (应用) 选项卡。</li>
+                    <li>在左侧菜单找到 <strong>Cookies</strong>，点击 <code>https://chatglm.cn</code>。</li>
+                    <li>找到 Name 为 <code>chatglm_refresh_token</code> 的项，复制其 <strong>Value</strong> 值。</li>
+                </ol>
+            `,
+            kimi: `
+                <p class="font-bold mb-2">方法一 (推荐)：</p>
+                <ol class="list-decimal pl-5 space-y-2 mb-4">
+                    <li>访问 <a href="https://kimi.moonshot.cn/" target="_blank">Kimi 智能助手</a> 并登录。</li>
+                    <li>按 <code>F12</code> 打开开发者工具，切换到 <strong>Application</strong> (应用) 选项卡。</li>
+                    <li>在左侧菜单找到 <strong>Local Storage</strong>，点击 <code>https://kimi.moonshot.cn</code>。</li>
+                    <li>找到 <code>refresh_token</code>。如果是数组，请将它们用 <code>.</code> 连接起来。</li>
+                </ol>
+                <p class="font-bold mb-2">方法二 (Cookie)：</p>
+                <ol class="list-decimal pl-5 space-y-2">
+                    <li>在 <strong>Cookies</strong> 中找到 <code>kimi-auth</code> 的值。</li>
+                </ol>
+            `,
+            qwen: `
+                <ol class="list-decimal pl-5 space-y-2">
+                    <li>访问 <a href="https://tongyi.aliyun.com/qianwen" target="_blank">通义千问</a> 并登录。</li>
+                    <li>按 <code>F12</code> 打开开发者工具，切换到 <strong>Application</strong> (应用) 选项卡。</li>
+                    <li>在左侧菜单找到 <strong>Cookies</strong>，点击 <code>https://tongyi.aliyun.com</code>。</li>
+                    <li>找到 <code>tongyi_sso_ticket</code> 或 <code>login_aliyunid_ticket</code> 的值，复制即可。</li>
+                </ol>
+            `,
+            doubao: `
+                <ol class="list-decimal pl-5 space-y-2">
+                    <li>访问 <a href="https://www.doubao.com/" target="_blank">豆包</a> 并登录。</li>
+                    <li>按 <code>F12</code> 打开开发者工具，切换到 <strong>Network</strong> (网络) 选项卡。</li>
+                    <li>在页面发送一条消息，找到对应的网络请求 (如 <code>chat</code>)。</li>
+                    <li>收集以下信息并组合成 JSON:
+                        <ul class="list-disc pl-5 mt-1 text-xs text-gray-600">
+                            <li><code>cookie</code> (Request Headers)</li>
+                            <li><code>tea_uuid</code>, <code>device_id</code>, <code>web_id</code> (Query Params)</li>
+                            <li><code>x_flow_trace</code> (Request Headers)</li>
+                        </ul>
+                    </li>
+                </ol>
+                <div class="mt-2 p-2 bg-gray-100 rounded text-xs font-mono">{"cookie":"...","device_id":"...",...}</div>
+            `,
+            yuanbao: `
+                <p><strong>推荐使用扫码登录功能自动获取。</strong></p>
+                <p class="mt-2">手动获取方法：</p>
+                <ol class="list-decimal pl-5 space-y-2">
+                    <li>访问 <a href="https://yuanbao.tencent.com/" target="_blank">腾讯元宝</a> 并登录。</li>
+                    <li>按 <code>F12</code> 打开开发者工具，查看网络请求。</li>
+                    <li>获取 Cookie 中的 <code>hy_user</code>, <code>hy_token</code>。</li>
+                    <li>获取请求体 (Payload) 中的 <code>agent_id</code>。</li>
+                </ol>
+            `,
+            baidu: `
+                <ol class="list-decimal pl-5 space-y-2">
+                    <li>访问 <a href="https://chat.baidu.com/" target="_blank">百度文心一言</a> 并登录。</li>
+                    <li>按 <code>F12</code> 打开开发者工具，切换到 <strong>Application</strong> (应用) 选项卡。</li>
+                    <li>在左侧菜单找到 <strong>Cookies</strong>，点击 <code>https://chat.baidu.com</code>。</li>
+                    <li>此服务需要完整的 Cookie 字符串。</li>
+                    <li>建议：在 Console (控制台) 输入 <code>document.cookie</code> 并回车，复制得到的完整字符串。</li>
+                </ol>
+            `
+        };
+
+        let currentConfig = {};
+        let currentModel = '';
+        let chatHistory = [];
+
+        let yuanbaoPollInterval = null;
+        let currentYuanbaoKey = null;
+
+        function openYuanbaoLogin(key) {
+            currentYuanbaoKey = key;
+            const modal = document.getElementById('yuanbao-modal');
+            const qrContainer = document.getElementById('yuanbao-qr-container');
+            const statusText = document.getElementById('yuanbao-status');
+            
+            modal.classList.remove('hidden');
+            qrContainer.innerHTML = '<div class="animate-pulse bg-gray-200 w-48 h-48 rounded"></div>';
+            statusText.innerText = '正在获取二维码...';
+            statusText.className = 'text-sm text-gray-600 mb-4';
+
+            // Fetch QR Code
+            fetch('/api/yuanbao/login/qrcode')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.qrcode_url && data.uuid) {
+                        // Display QR Code
+                        // Note: WeChat QR code URLs might need to be proxied or handled carefully if strict Referrer policies apply,
+                        // but usually they work in img tags.
+                        qrContainer.innerHTML = `<img src="${data.qrcode_url}" alt="Scan QR Code" class="w-48 h-48 shadow-md rounded">`;
+                        statusText.innerText = '请使用微信扫码';
+                        
+                        // Start Polling
+                        startYuanbaoPolling(data.uuid);
+                    } else {
+                        statusText.innerText = '获取二维码失败，请重试';
+                        statusText.className = 'text-sm text-red-600 mb-4';
+                    }
+                })
+                .catch(err => {
+                    console.error('Error fetching QR code:', err);
+                    statusText.innerText = '网络错误，请稍后重试';
+                    statusText.className = 'text-sm text-red-600 mb-4';
+                });
+        }
+
+        function closeYuanbaoLogin() {
+            const modal = document.getElementById('yuanbao-modal');
+            modal.classList.add('hidden');
+            if (yuanbaoPollInterval) {
+                clearInterval(yuanbaoPollInterval);
+                yuanbaoPollInterval = null;
+            }
+            currentYuanbaoKey = null;
+        }
+
+        function startYuanbaoPolling(uuid) {
+            if (yuanbaoPollInterval) clearInterval(yuanbaoPollInterval);
+            
+            yuanbaoPollInterval = setInterval(() => {
+                fetch(`/api/yuanbao/login/status?uuid=${uuid}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const statusText = document.getElementById('yuanbao-status');
+                        
+                        if (data.status === 'success') {
+                            clearInterval(yuanbaoPollInterval);
+                            statusText.innerText = '登录成功！正在填入 Cookie...';
+                            statusText.className = 'text-sm text-green-600 mb-4 font-bold';
+                            
+                            // Fill the input
+                            if (currentYuanbaoKey !== null) {
+                                const hyUserInput = document.getElementById(`hy_user-${currentYuanbaoKey}`);
+                                const hyTokenInput = document.getElementById(`hy_token-${currentYuanbaoKey}`);
+                                const agentIdInput = document.getElementById(`agent_id-${currentYuanbaoKey}`);
+                                
+                                if (hyUserInput && hyTokenInput && agentIdInput) {
+                                    hyUserInput.value = data.hy_user || '';
+                                    hyTokenInput.value = data.hy_token || '';
+                                    agentIdInput.value = data.agent_id || '';
+                                    
+                                    // Visual feedback
+                                    [hyUserInput, hyTokenInput, agentIdInput].forEach(el => {
+                                        el.classList.add('bg-green-100');
+                                        setTimeout(() => el.classList.remove('bg-green-100'), 1000);
+                                    });
+                                }
+                            }
+                            
+                            // Close modal after delay
+                            setTimeout(() => {
+                                closeYuanbaoLogin();
+                            }, 1500);
+                            
+                        } else if (data.status === 'scanned') {
+                            statusText.innerText = '已扫码，请在手机上确认登录';
+                            statusText.className = 'text-sm text-blue-600 mb-4 font-bold';
+                        } else if (data.status === 'waiting') {
+                            statusText.innerText = '请使用微信扫码';
+                            statusText.className = 'text-sm text-gray-600 mb-4';
+                        } else if (data.status === 'expired') {
+                            clearInterval(yuanbaoPollInterval);
+                            statusText.innerText = '二维码已过期，请关闭重试';
+                            statusText.className = 'text-sm text-red-600 mb-4';
+                        } else if (data.status === 'refused') {
+                            clearInterval(yuanbaoPollInterval);
+                            statusText.innerText = '您取消了登录';
+                            statusText.className = 'text-sm text-red-600 mb-4';
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Polling error:', err);
+                        // Don't stop polling immediately on single network error, but maybe log it
+                    });
+            }, 1500);
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('yuanbao-modal');
+            if (event.target == modal) {
+                closeYuanbaoLogin();
+            }
+        }
+
+        async function loadConfig() {
+            const res = await fetch('/api/config');
+            currentConfig = await res.json();
+            renderServices();
+        }
+
+        function renderServices() {
+            const container = document.getElementById('services-container');
+            container.innerHTML = '';
+
+            for (const [key, service] of Object.entries(currentConfig)) {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-lg shadow-md p-6';
+                
+                // --- Accounts Management UI ---
+                let accountsHtml = '';
+                
+                // Normalize accounts to array
+                let accounts = [];
+                if (Array.isArray(service.token)) {
+                    accounts = service.token;
+                } else if (service.token) {
+                    accounts = [service.token];
+                }
+
+                // Try to migrate legacy flat yuanbao config to account object if needed
+                if (key === 'yuanbao' && accounts.length === 0 && service.hy_token) {
+                     accounts = [{
+                         hy_user: service.hy_user,
+                         hy_token: service.hy_token,
+                         agent_id: service.agent_id
+                     }];
+                }
+
+                // Render existing accounts list
+                if (accounts.length > 0) {
+                    accountsHtml += `<div class="space-y-3 mb-4">`;
+                    accounts.forEach((acc, index) => {
+                        let displayInfo = '';
+                        if (typeof acc === 'object' && acc !== null) {
+                            // Yuanbao Object
+                             displayInfo = `
+                                <div class="grid grid-cols-1 gap-1 text-xs">
+                                    <div class="font-mono text-gray-600">hy_user: <span class="text-gray-800 font-bold">${(acc.hy_user || '').substring(0, 20)}...</span></div>
+                                    <div class="font-mono text-gray-600">agent_id: ${(acc.agent_id || '')}</div>
+                                </div>
+                             `;
+                        } else {
+                            const str = String(acc);
+                            if (str.trim().startsWith("{") || str.trim().startsWith("[")) {
+                                try {
+                                    const parsed = JSON.parse(str);
+                                    if (key === 'doubao' && parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                                        const cookiePreview = parsed.cookie ? String(parsed.cookie).slice(0, 24) : '';
+                                        const deviceId = parsed.device_id ? String(parsed.device_id) : '';
+                                        const webId = parsed.web_id ? String(parsed.web_id) : '';
+                                        const teaUuid = parsed.tea_uuid ? String(parsed.tea_uuid) : '';
+                                        displayInfo = `
+                                            <div class="grid grid-cols-1 gap-1 text-xs">
+                                                <div class="font-mono text-gray-600">cookie: <span class="text-gray-800 font-bold">${cookiePreview}${cookiePreview ? '...' : ''}</span></div>
+                                                ${deviceId ? `<div class="font-mono text-gray-600">device_id: ${deviceId}</div>` : ``}
+                                                ${webId ? `<div class="font-mono text-gray-600">web_id: ${webId}</div>` : ``}
+                                                ${teaUuid ? `<div class="font-mono text-gray-600">tea_uuid: ${teaUuid}</div>` : ``}
+                                            </div>
+                                        `;
+                                    } else {
+                                        const keys = parsed && typeof parsed === 'object' ? Object.keys(parsed).slice(0, 6).join(', ') : '';
+                                        const preview = keys ? `{${keys}${Object.keys(parsed || {}).length > 6 ? ', ...' : ''}}` : str;
+                                        displayInfo = `<div class="font-mono text-xs text-gray-600 break-all">${preview}</div>`;
+                                    }
+                                } catch (e) {
+                                    const preview = str.length > 50 ? str.substring(0, 50) + '...' : str;
+                                    displayInfo = `<div class="font-mono text-xs text-gray-600 break-all">${preview}</div>`;
+                                }
+                            } else {
+                                const preview = str.length > 50 ? str.substring(0, 50) + '...' : str;
+                                displayInfo = `<div class="font-mono text-xs text-gray-600 break-all">${preview}</div>`;
+                            }
+                        }
+
+                        accountsHtml += `
+                            <div class="flex justify-between items-center bg-gray-50 p-3 rounded border border-gray-200">
+                                <div class="flex items-center gap-3">
+                                    <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded">#${index + 1}</span>
+                                    ${displayInfo}
+                                </div>
+                                <button onclick="removeAccount('${key}', ${index})" class="text-red-500 hover:text-red-700 p-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        `;
+                    });
+                    accountsHtml += `</div>`;
+                } else {
+                     accountsHtml += `<div class="text-sm text-gray-400 italic mb-4">暂无账号配置</div>`;
+                }
+
+                // Add Button & Form
+                const formId = `add-form-${key}`;
+                accountsHtml += `
+                    <div id="${formId}" class="hidden bg-gray-50 p-4 rounded border border-blue-200 mb-4">
+                        ${key === 'yuanbao' ? `
+                            <div class="grid grid-cols-1 gap-3">
+                                <input type="text" id="new-hy_user-${key}" class="w-full shadow-sm border rounded py-1 px-2 text-sm" placeholder="hy_user">
+                                <input type="text" id="new-hy_token-${key}" class="w-full shadow-sm border rounded py-1 px-2 text-sm" placeholder="hy_token">
+                                <input type="text" id="new-agent_id-${key}" class="w-full shadow-sm border rounded py-1 px-2 text-sm" placeholder="agent_id">
+                                
+                                <div class="flex gap-2">
+                                     <button onclick="openYuanbaoLoginForAdd('${key}')" class="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 rounded">
+                                        📱 扫码获取
+                                    </button>
+                                    <button onclick="confirmAddAccount('${key}')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded">
+                                        确认添加
+                                    </button>
+                                </div>
+                            </div>
+                        ` : key === 'doubao' ? `
+                            <div class="p-2 bg-gray-50 rounded border text-sm text-gray-600 mb-3">
+                                豆包账号需要多个参数；这里一项一个输入框，保存时自动组合成 JSON。
+                            </div>
+                            <div class="grid grid-cols-1 gap-3">
+                                <textarea id="new-doubao-cookie-${key}" rows="2" class="w-full shadow-sm border rounded py-1 px-2 text-sm font-mono" placeholder="cookie (必填，复制完整 cookie 字符串)"></textarea>
+                                <input type="text" id="new-doubao-device_id-${key}" class="w-full shadow-sm border rounded py-1 px-2 text-sm font-mono" placeholder="device_id (可选)">
+                                <input type="text" id="new-doubao-web_id-${key}" class="w-full shadow-sm border rounded py-1 px-2 text-sm font-mono" placeholder="web_id (可选)">
+                                <input type="text" id="new-doubao-tea_uuid-${key}" class="w-full shadow-sm border rounded py-1 px-2 text-sm font-mono" placeholder="tea_uuid (可选)">
+                                <input type="text" id="new-doubao-x_flow_trace-${key}" class="w-full shadow-sm border rounded py-1 px-2 text-sm font-mono" placeholder="x_flow_trace (可选)">
+                                <div class="bg-white rounded border border-gray-200 p-3">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <div class="text-xs font-bold text-gray-700">其他参数</div>
+                                        <button onclick="addDoubaoExtraField('${key}')" class="text-xs text-blue-600 hover:text-blue-800 underline">新增一项</button>
+                                    </div>
+                                    <div id="doubao-extra-${key}" class="space-y-2"></div>
+                                </div>
+                                <div class="flex justify-end">
+                                    <button onclick="confirmAddAccount('${key}')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded">
+                                        确认添加
+                                    </button>
+                                </div>
+                            </div>
+                        ` : `
+                            <div class="flex gap-2">
+                                <textarea id="new-token-${key}" rows="3" class="flex-1 shadow-sm border rounded py-1 px-2 text-sm font-mono" placeholder="${key === 'baidu' ? '请输入完整 Cookie JSON 或字符串' : '请输入 Token / Cookie'}"></textarea>
+                            </div>
+                            <div class="mt-2 flex justify-end">
+                                <button onclick="confirmAddAccount('${key}')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded">
+                                    确认添加
+                                </button>
+                            </div>
+                        `}
+                    </div>
+                    
+                    <button onclick="toggleAddForm('${key}')" id="btn-add-${key}" class="w-full border-2 border-dashed border-gray-300 hover:border-blue-500 text-gray-500 hover:text-blue-500 font-bold py-2 px-4 rounded transition-colors flex justify-center items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                        添加账号
+                    </button>
+                `;
+                
+                // --- End Accounts Management UI ---
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-xl font-semibold text-gray-700 capitalize">${key} 服务</h2>
+                            <button onclick="openChatByService('${key}')" class="bg-green-100 hover:bg-green-200 text-green-700 text-xs font-bold py-1 px-3 rounded flex items-center gap-1 transition-colors">
+                                💬 测试聊天
+                            </button>
+                        </div>
+                        <span class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded truncate max-w-[200px]">${service.url}</span>
+                    </div>
+                    
+                    <div class="flex gap-2 mb-4">
+                        <button onclick="testConnection('${key}')" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-3 rounded flex items-center gap-1 transition-colors">
+                            📡 测试连接
+                        </button>
+                        <span id="test-status-${key}" class="text-xs flex items-center"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-gray-700 text-sm font-bold">账号列表 (自动轮询)</label>
+                            <button onclick="openHelp('${key}')" class="text-xs text-blue-600 hover:text-blue-800 underline flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                如何获取 Token?
+                            </button>
+                        </div>
+                        ${accountsHtml}
+                    </div>
+
+                    ${key === 'kimi' ? `
+                    <div class="mb-4 flex items-center">
+                        <input type="checkbox" id="enable-search-${key}" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                        <label for="enable-search-${key}" class="ml-2 text-sm font-medium text-gray-900">启用联网搜索 (Internet Search)</label>
+                    </div>
+                    ` : ''}
+
+                    ${key === 'doubao' ? `
+                    <div class="mb-4 flex items-center">
+                        <input type="checkbox" id="enable-deep-${key}" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                        <label for="enable-deep-${key}" class="ml-2 text-sm font-medium text-gray-900">启用深度思考 (Deep Think)</label>
+                    </div>
+                    ` : ''}
+
+                    <div class="mb-2">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">支持模型 (自动路由)</label>
+                        <input type="text" id="models-${key}" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" value="${(service.models || []).join(', ')}">
+                        <p class="text-xs text-gray-500 mt-1">多个模型用逗号分隔。</p>
+                    </div>
+                `;
+                container.appendChild(card);
+            }
+        }
+
+        // --- Help Functions ---
+        async function testConnection(key) {
+            const statusSpan = document.getElementById(`test-status-${key}`);
+            statusSpan.innerHTML = '<span class="animate-pulse text-gray-500">Connecting...</span>';
+            
+            try {
+                const res = await fetch(`/api/test/${key}`);
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    statusSpan.innerHTML = `<span class="text-green-600 font-bold">✓ Connected (HTTP ${data.code})</span>`;
+                } else {
+                    statusSpan.innerHTML = `<span class="text-red-600 font-bold">✗ Failed: ${data.message}</span>`;
+                }
+            } catch (e) {
+                statusSpan.innerHTML = `<span class="text-red-600 font-bold">✗ Error: ${e.message}</span>`;
+            }
+        }
+
+        function openApiDocs() {
+            document.getElementById('api-docs-modal').classList.remove('hidden');
+        }
+
+        function closeApiDocs() {
+            document.getElementById('api-docs-modal').classList.add('hidden');
+        }
+
+        function openHelp(key) {
+            const content = helpDocs[key] || '暂无该服务的获取指南。';
+            const titleMap = {
+                deepseek: 'DeepSeek Token 获取指南',
+                glm: '智谱 GLM Token 获取指南',
+                kimi: 'Kimi 智能助手 Token 获取指南',
+                qwen: '通义千问 Token 获取指南',
+                doubao: '豆包 Token 获取指南',
+                yuanbao: '腾讯元宝 Token 获取指南',
+                baidu: '百度文心一言 Cookie 获取指南'
+            };
+            document.getElementById('help-title').innerText = titleMap[key] || '获取指南';
+            document.getElementById('help-content').innerHTML = content;
+            document.getElementById('help-modal').classList.remove('hidden');
+        }
+
+        function closeHelp() {
+            document.getElementById('help-modal').classList.add('hidden');
+        }
+
+        // --- Account Management Functions ---
+
+        function toggleAddForm(key) {
+            const form = document.getElementById(`add-form-${key}`);
+            const btn = document.getElementById(`btn-add-${key}`);
+            if (form.classList.contains('hidden')) {
+                form.classList.remove('hidden');
+                btn.classList.add('hidden');
+            } else {
+                form.classList.add('hidden');
+                btn.classList.remove('hidden');
+            }
+        }
+
+        function removeAccount(key, index) {
+            if (!confirm('确定要删除这个账号吗？')) return;
+            
+            let accounts = currentConfig[key].token;
+            if (!Array.isArray(accounts)) {
+                accounts = [accounts];
+            }
+            
+            accounts.splice(index, 1);
+            currentConfig[key].token = accounts;
+            
+            // Clean up legacy fields if yuanbao becomes empty (optional, but good for consistency)
+            if (key === 'yuanbao' && accounts.length === 0) {
+                 delete currentConfig[key].hy_user;
+                 delete currentConfig[key].hy_token;
+                 delete currentConfig[key].agent_id;
+            }
+
+            renderServices();
+        }
+
+        function confirmAddAccount(key) {
+            let newAccount = null;
+
+            if (key === 'yuanbao') {
+                const hyUser = document.getElementById(`new-hy_user-${key}`).value.trim();
+                const hyToken = document.getElementById(`new-hy_token-${key}`).value.trim();
+                const agentId = document.getElementById(`new-agent_id-${key}`).value.trim();
+
+                if (!hyUser || !hyToken) {
+                    alert('hy_user 和 hy_token 不能为空');
+                    return;
+                }
+                newAccount = {
+                    hy_user: hyUser,
+                    hy_token: hyToken,
+                    agent_id: agentId
+                };
+            } else if (key === 'doubao') {
+                const cookie = document.getElementById(`new-doubao-cookie-${key}`)?.value?.trim() || '';
+                const deviceId = document.getElementById(`new-doubao-device_id-${key}`)?.value?.trim() || '';
+                const webId = document.getElementById(`new-doubao-web_id-${key}`)?.value?.trim() || '';
+                const teaUuid = document.getElementById(`new-doubao-tea_uuid-${key}`)?.value?.trim() || '';
+                const xFlowTrace = document.getElementById(`new-doubao-x_flow_trace-${key}`)?.value?.trim() || '';
+                if (!cookie) {
+                    alert('cookie 不能为空');
+                    return;
+                }
+
+                const sessionObj = {};
+                sessionObj.cookie = cookie;
+                if (deviceId) sessionObj.device_id = deviceId;
+                if (webId) sessionObj.web_id = webId;
+                if (teaUuid) sessionObj.tea_uuid = teaUuid;
+                if (xFlowTrace) sessionObj.x_flow_trace = xFlowTrace;
+
+                const extraContainer = document.getElementById(`doubao-extra-${key}`);
+                if (extraContainer) {
+                    const rows = extraContainer.querySelectorAll('[data-doubao-extra-row="1"]');
+                    rows.forEach(row => {
+                        const kEl = row.querySelector('input[data-doubao-extra-key="1"]');
+                        const vEl = row.querySelector('input[data-doubao-extra-val="1"]');
+                        const k = (kEl?.value || '').trim();
+                        const v = (vEl?.value || '').trim();
+                        if (k && v) {
+                            sessionObj[k] = v;
+                        }
+                    });
+                }
+
+                newAccount = JSON.stringify(sessionObj);
+            } else {
+                const tokenVal = document.getElementById(`new-token-${key}`).value.trim();
+                if (!tokenVal) {
+                    alert('内容不能为空');
+                    return;
+                }
+                newAccount = tokenVal;
+            }
+
+            // Normalize current token to array
+            let currentAccounts = currentConfig[key].token;
+            if (!Array.isArray(currentAccounts)) {
+                currentAccounts = currentAccounts ? [currentAccounts] : [];
+            }
+            
+            currentAccounts.push(newAccount);
+            currentConfig[key].token = currentAccounts;
+
+            // Reset UI
+            renderServices();
+        }
+
+        function addDoubaoExtraField(key, presetKey = '', presetVal = '') {
+            const container = document.getElementById(`doubao-extra-${key}`);
+            if (!container) return;
+
+            const row = document.createElement('div');
+            row.setAttribute('data-doubao-extra-row', '1');
+            row.className = 'flex gap-2 items-center';
+
+            const keyInput = document.createElement('input');
+            keyInput.setAttribute('data-doubao-extra-key', '1');
+            keyInput.type = 'text';
+            keyInput.className = 'flex-1 shadow-sm border rounded py-1 px-2 text-sm font-mono';
+            keyInput.placeholder = '参数名 (key)';
+            keyInput.value = presetKey;
+
+            const valInput = document.createElement('input');
+            valInput.setAttribute('data-doubao-extra-val', '1');
+            valInput.type = 'text';
+            valInput.className = 'flex-1 shadow-sm border rounded py-1 px-2 text-sm font-mono';
+            valInput.placeholder = '参数值 (value)';
+            valInput.value = presetVal;
+
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'text-red-500 hover:text-red-700 text-xs font-bold px-2 py-1';
+            delBtn.textContent = '删除';
+            delBtn.onclick = () => row.remove();
+
+            row.appendChild(keyInput);
+            row.appendChild(valInput);
+            row.appendChild(delBtn);
+            container.appendChild(row);
+        }
+
+        function openYuanbaoLoginForAdd(key) {
+            // Re-use existing modal logic but redirect success callback
+            currentYuanbaoKey = key; // Mark which service key
+            
+            // Override the success handler in polling temporarily or handle state
+            // Actually, let's modify the existing startYuanbaoPolling to handle "Add Mode"
+            // Or simpler: Just populate the "Add" form inputs when scan is done.
+            
+            // Open modal
+            const modal = document.getElementById('yuanbao-modal');
+            const qrContainer = document.getElementById('yuanbao-qr-container');
+            const statusText = document.getElementById('yuanbao-status');
+            
+            modal.classList.remove('hidden');
+            qrContainer.innerHTML = '<div class="animate-pulse bg-gray-200 w-48 h-48 rounded"></div>';
+            statusText.innerText = '正在获取二维码...';
+            
+             fetch('/api/yuanbao/login/qrcode')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.qrcode_url && data.uuid) {
+                        qrContainer.innerHTML = `<img src="${data.qrcode_url}" alt="Scan QR Code" class="w-48 h-48 shadow-md rounded">`;
+                        statusText.innerText = '请使用微信扫码';
+                        startYuanbaoPolling(data.uuid, true); // true for "isAddMode"
+                    } else {
+                        statusText.innerText = '获取二维码失败';
+                    }
+                });
+        }
+        
+        // Modify startYuanbaoPolling to accept isAddMode
+        function startYuanbaoPolling(uuid, isAddMode = false) {
+             if (yuanbaoPollInterval) clearInterval(yuanbaoPollInterval);
+             
+             yuanbaoPollInterval = setInterval(() => {
+                 fetch(`/api/yuanbao/login/status?uuid=${uuid}`)
+                     .then(response => response.json())
+                     .then(data => {
+                         const statusText = document.getElementById('yuanbao-status');
+                         
+                         if (data.status === 'success') {
+                             clearInterval(yuanbaoPollInterval);
+                             statusText.innerText = '登录成功！';
+                             
+                             if (isAddMode && currentYuanbaoKey) {
+                                 // Fill the ADD FORM inputs
+                                 document.getElementById(`new-hy_user-${currentYuanbaoKey}`).value = data.hy_user || '';
+                                 document.getElementById(`new-hy_token-${currentYuanbaoKey}`).value = data.hy_token || '';
+                                 document.getElementById(`new-agent_id-${currentYuanbaoKey}`).value = data.agent_id || '';
+                             } else if (currentYuanbaoKey) {
+                                 // Legacy fill (if we still had the old UI, but we replaced it. 
+                                 // Wait, I removed the old UI in renderServices. 
+                                 // So this branch might not be needed unless I revert partially.)
+                                 // Actually, let's assume we ONLY use the new Add Form for scanning now.
+                             }
+                             
+                             setTimeout(() => closeYuanbaoLogin(), 1000);
+                         } else if (data.status === 'scanned') {
+                             statusText.innerText = '已扫码，请确认';
+                         } else if (data.status === 'expired') {
+                            statusText.innerText = '已过期';
+                            clearInterval(yuanbaoPollInterval);
+                         }
+                     });
+             }, 1500);
+        }
+
+        // --- End Account Management Functions ---
+
+        // --- Chat Functions ---
+
+        function openChatByService(serviceKey) {
+            const modelsStr = document.getElementById(`models-${serviceKey}`)?.value || '';
+            const firstModel = modelsStr.split(',').map(s => s.trim()).filter(s => s)[0] || '';
+            openChat(firstModel);
+        }
+
+        function openChat(model) {
+            if (!model) {
+                alert('该服务未配置模型名称，无法开启聊天。');
+                return;
+            }
+            currentModel = model;
+            document.getElementById('chat-title').innerText = `Chat with ${model}`;
+            document.getElementById('chat-subtitle').innerText = `正在使用模型: ${model}`;
+            document.getElementById('chat-history').innerHTML = '<div class="text-center text-gray-400 mt-10">开始与 ' + model + ' 对话...</div>';
+            document.getElementById('chat-modal').classList.remove('hidden');
+            document.getElementById('chat-input').focus();
+            chatHistory = []; // Reset history
+        }
+
+        function closeChat() {
+            document.getElementById('chat-modal').classList.add('hidden');
+        }
+
+        document.getElementById('chat-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            input.value = '';
+            const historyDiv = document.getElementById('chat-history');
+            
+            // Remove welcome message if exists
+            if (chatHistory.length === 0) {
+                historyDiv.innerHTML = '';
+            }
+
+            // User Message
+            appendMessage('user', message);
+            chatHistory.push({ role: 'user', content: message });
+
+            // Assistant Placeholder
+            const assistantMsgId = 'msg-' + Date.now();
+            appendMessage('assistant', '<span class="animate-pulse">...</span>', assistantMsgId);
+            
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = true;
+            sendBtn.classList.add('opacity-50');
+
+            try {
+                // Find which service this model belongs to
+                const serviceKey = Object.keys(currentConfig).find(k => (currentConfig[k].models || []).includes(currentModel));
+                const service = currentConfig[serviceKey] || {};
+
+                let headers = { 
+                    'Content-Type': 'application/json'
+                };
+                
+                let body = {
+                    model: currentModel,
+                    messages: chatHistory,
+                    stream: true
+                };
+
+                if (serviceKey === 'yuanbao') {
+                    // Yuanbao specific handling
+                    let account = null;
+                    if (Array.isArray(service.token) && service.token.length > 0) {
+                        account = service.token[Math.floor(Math.random() * service.token.length)];
+                    } else if (service.token && typeof service.token === 'object') {
+                        account = service.token;
+                    }
+                    const hyToken = (account && typeof account === 'object' ? (account.hy_token || account.token) : null) || service.hy_token || '';
+                    const hyUser = (account && typeof account === 'object' ? (account.hy_user || '') : '') || service.hy_user || '';
+                    const agentId = (account && typeof account === 'object' ? (account.agent_id || '') : '') || service.agent_id || 'naQivTmsDa';
+                    headers['Authorization'] = 'Bearer ' + hyToken;
+                    // Add extra parameters required by Yuanbao proxy
+                    // Note: These will be passed as extra_body or directly if the proxy supports it
+                    // Assuming the proxy accepts these fields at the root of the JSON body or in extra_body
+                    // Standard OpenAI clients use extra_body, but here we are raw fetching
+                    body['agent_id'] = agentId;
+                    body['hy_user'] = hyUser;
+                    body['hy_source'] = 'web';
+                } else if (serviceKey === 'kimi') {
+                    const token = Array.isArray(service.token) ? (service.token.length ? service.token[Math.floor(Math.random() * service.token.length)] : '') : (service.token || '');
+                    headers['Authorization'] = 'Bearer ' + token;
+                    // Check for search toggle
+                    const enableSearch = document.getElementById(`enable-search-${serviceKey}`)?.checked;
+                    if (enableSearch) {
+                        // Append -search if not already present
+                        if (!body.model.includes('search')) {
+                            body.model += '-search';
+                        }
+                    }
+                } else if (serviceKey === 'doubao') {
+                    const token = Array.isArray(service.token) ? (service.token.length ? service.token[Math.floor(Math.random() * service.token.length)] : '') : (service.token || '');
+                    headers['Authorization'] = 'Bearer ' + token;
+                    // Check for deep think toggle
+                    const enableDeep = document.getElementById(`enable-deep-${serviceKey}`)?.checked;
+                    if (enableDeep) {
+                         // Append -deep if not already present
+                         if (!body.model.includes('deep')) {
+                             body.model += '-deep';
+                         }
+                    }
+                } else {
+                    const token = Array.isArray(service.token) ? (service.token.length ? service.token[Math.floor(Math.random() * service.token.length)] : '') : (service.token || '');
+                    headers['Authorization'] = 'Bearer ' + token;
+                }
+
+                const response = await fetch('/v1/chat/completions', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`API Error ${response.status}: ${errText}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullContent = '';
+                const assistantMsgWrapper = document.getElementById(assistantMsgId);
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') continue;
+                            
+                            try {
+                                const json = JSON.parse(data);
+                                const content = json.choices[0]?.delta?.content || ''; // 流式 delta
+                                fullContent += content;
+                                assistantMsgWrapper.querySelector('.prose').innerHTML = marked.parse(fullContent);
+                                historyDiv.scrollTop = historyDiv.scrollHeight;
+                            } catch (e) {
+                                // 如果解析 JSON 失败（比如是普通文本响应），尝试直接显示
+                                // 针对 Python Doubao 非流式的情况
+                                if (!fullContent && data.includes('"content":')) {
+                                    // 尝试作为非流式处理
+                                    try {
+                                         const json = JSON.parse(data);
+                                         if (json.choices && json.choices[0].message) {
+                                             fullContent = json.choices[0].message.content;
+                                             assistantMsgWrapper.querySelector('.prose').innerHTML = marked.parse(fullContent);
+                                         }
+                                    } catch(e2) {}
+                                }
+                            }
+                        } 
+                        // 处理非 SSE 响应 (普通 JSON)
+                        else if (line.trim().startsWith('{') && !fullContent) {
+                            try {
+                                const json = JSON.parse(line);
+                                if (json.error) {
+                                     // Handle explicit error in JSON
+                                     fullContent = `**Error:** ${typeof json.error === 'string' ? json.error : JSON.stringify(json.error)}`;
+                                     assistantMsgWrapper.querySelector('.prose').innerHTML = marked.parse(fullContent);
+                                     historyDiv.scrollTop = historyDiv.scrollHeight;
+                                } else if (json.choices && json.choices[0].message) {
+                                    fullContent = json.choices[0].message.content;
+                                    assistantMsgWrapper.querySelector('.prose').innerHTML = marked.parse(fullContent);
+                                    historyDiv.scrollTop = historyDiv.scrollHeight;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+                
+                chatHistory.push({ role: 'assistant', content: fullContent });
+
+            } catch (error) {
+                console.error('Chat error:', error);
+                document.getElementById(assistantMsgId).querySelector('.prose').innerHTML = `<span class="text-red-500">Error: ${error.message}</span>`;
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.classList.remove('opacity-50');
+                document.getElementById('chat-input').focus();
+            }
+        }
+
+        function appendMessage(role, content, id = null) {
+            const historyDiv = document.getElementById('chat-history');
+            const div = document.createElement('div');
+            div.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+            if (id) div.id = id;
+            
+            const bubble = document.createElement('div');
+            bubble.className = `max-w-[80%] rounded-lg px-4 py-2 ${
+                role === 'user' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-white border border-gray-200 text-gray-800'
+            }`;
+            
+            if (role === 'assistant') {
+                bubble.innerHTML = `<div class="prose prose-sm max-w-none">${content}</div>`;
+            } else {
+                bubble.textContent = content;
+            }
+            
+            div.appendChild(bubble);
+            historyDiv.appendChild(div);
+            historyDiv.scrollTop = historyDiv.scrollHeight;
+        }
+
+        // --- End Chat Functions ---
+
+        async function saveConfig() {
+            // Re-sync UI state to currentConfig before saving (though UI actions usually update currentConfig directly)
+            // Actually, removeAccount/confirmAddAccount already update currentConfig.
+            // But 'models' input is still separate, so we must sync models.
+            
+            for (const key of Object.keys(currentConfig)) {
+                const modelsStr = document.getElementById(`models-${key}`).value;
+                currentConfig[key].models = modelsStr.split(',').map(s => s.trim()).filter(s => s);
+                
+                // Smart Save: If "Add Token" textarea has content but user forgot to click "Confirm Add",
+                // AND there are no other tokens, we auto-add it.
+                if (key !== 'yuanbao') { // Yuanbao uses complex form, safer to skip auto-add or handle carefully
+                    const tokenInput = document.getElementById(`new-token-${key}`);
+                    if (tokenInput && tokenInput.value.trim()) {
+                        const val = tokenInput.value.trim();
+                        // Check if accounts list is empty or user likely intends to add this
+                        let currentAccounts = currentConfig[key].token;
+                        if (!Array.isArray(currentAccounts)) {
+                            currentAccounts = currentAccounts ? [currentAccounts] : [];
+                        }
+                        
+                        // If empty, definitely add. If not empty, maybe warn? 
+                        // Let's just add it if it's not already in the list (simple check)
+                        if (!currentAccounts.includes(val)) {
+                             currentAccounts.push(val);
+                             currentConfig[key].token = currentAccounts;
+                             // Clear input to indicate it was consumed
+                             tokenInput.value = ''; 
+                        }
+                    }
+                }
+            }
+
+            console.log('Saving config:', JSON.stringify(currentConfig, null, 2));
+
+            try {
+                const res = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(currentConfig)
+                });
+                
+                if (res.ok) {
+                    // Re-render to show any auto-added tokens
+                    renderServices();
+                    alert('配置保存成功！即时生效。');
+                } else {
+                    const errorText = await res.text();
+                    let detail = errorText;
+                    try {
+                        const parsed = JSON.parse(errorText);
+                        detail = parsed?.detail || errorText;
+                    } catch (e) {}
+                    alert(`保存失败: ${detail || ('HTTP ' + res.status)}`);
+                }
+            } catch (e) {
+                alert('保存出错: ' + e);
+            }
+        }
+
+        loadConfig();
+    </script>
+</body>
+</html>

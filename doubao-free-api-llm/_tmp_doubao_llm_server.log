@@ -1,0 +1,171 @@
+[32m[2026-01-14 16:46:02.282][success][index<967,20>] Server initialized[39m
+[96m[2026-01-14 16:46:02.284][info][index<2556,18>] <<<< doubao free server >>>>[39m
+[96m[2026-01-14 16:46:02.284][info][index<2557,18>] Version: 0.0.2[39m
+[96m[2026-01-14 16:46:02.284][info][index<2558,18>] Process id: 1003[39m
+[96m[2026-01-14 16:46:02.284][info][index<2559,18>] Environment: dev[39m
+[96m[2026-01-14 16:46:02.285][info][index<2560,18>] Service name: doubao-free-api[39m
+[96m[2026-01-14 16:46:02.285][info][index<991,22>] Route  attached[39m
+[96m[2026-01-14 16:46:02.285][info][index<991,22>] Route /v1/chat attached[39m
+[96m[2026-01-14 16:46:02.285][info][index<991,22>] Route /ping attached[39m
+[96m[2026-01-14 16:46:02.285][info][index<991,22>] Route /token attached[39m
+[96m[2026-01-14 16:46:02.285][info][index<991,22>] Route /v1 attached[39m
+[32m[2026-01-14 16:46:02.288][success][index<1080,20>] Server listening on port 18080 (127.0.0.1)[39m
+[32m[2026-01-14 16:46:02.288][success][index<2565,24>] Service startup completed (3ms)[39m
+[96m[2026-01-14 16:46:02.354][info][index<1017,26>] -> GET /ping[39m
+[96m[2026-01-14 16:46:02.354][info][index<987,30>] <- GET /ping 0ms[39m
+[96m[2026-01-14 16:46:02.491][info][index<1017,26>] -> POST /v1/chat/completions[39m
+[96m[2026-01-14 16:46:02.491][info][index<1336,20>] [ { role: 'user', content: '你好，用一句话介绍你自己' } ][39m
+[96m[2026-01-14 16:46:02.491][info][index<1508,18>] 本次请求上传：0个文件[39m
+[96m[2026-01-14 16:46:02.491][info][index<1524,20>] 
+透传内容：
+你好，用一句话介绍你自己
+[39m
+[96m[2026-01-14 16:46:02.493][info][index<1302,20>] 请求参数: {"aid":"497858","device_id":"7898804305030246000","device_platform":"web","language":"zh","pc_version":"2.23.2","pkg_type":"release_version","real_aid":"497858","region":"CN","samantha_web":1,"sys_region":"CN","tea_uuid":"7211679543263597000","use_olympus_account":1,"version_code":"20800","web_id":"7211679543263597000","msToken":"ZaX8VZRdVck9i-9A07kcQ1Mr0s2-ZTaZ73ftJfDXLIr94hs__uqEIYezN5MUgiwWVX7r0R4E5c16LvuqvlAkDfM9yVhuR0h5SRYcCGCAonebHyNuoxAwtefPxWuquk2V","a_bogus":"mf-nzRhRHtWOpSZcclJVY55nuvi[39m
+[37m[2026-01-14 16:46:02.869][debug][index<1712,24>] SSE Event: event_type=2005, has_event_data=true[39m
+[93m[2026-01-14 16:46:02.870][warning][index<1728,28>] 豆包服务器返回错误 (2005): 当前服务访问频繁，请稍后重试 (code: 710022002)[39m
+[91m[2026-01-14 16:46:02.870][error][index<1785,24>] APIException [Error]: [请求doubao失败]: 当前服务访问频繁，请稍后重试 (code: 710022002)
+    at file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1729:19
+    at parseEventStreamLine (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:73:9)
+    at Object.feed (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:61:7)
+    at IncomingMessage.<anonymous> (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1789:42)
+    at IncomingMessage.emit (node:events:508:28)
+    at Readable.read (node:internal/streams/readable:780:10)
+    at flow (node:internal/streams/readable:1286:53)
+    at resume_ (node:internal/streams/readable:1265:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errcode: -2001,
+  errmsg: '[请求doubao失败]: 当前服务访问频繁，请稍后重试 (code: 710022002)',
+  data: undefined,
+  httpStatusCode: undefined
+}[39m
+[91m[2026-01-14 16:46:02.870][error][index<1386,22>] Stream response error: Error: [请求doubao失败]: 当前服务访问频繁，请稍后重试 (code: 710022002)
+    at file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1729:19
+    at parseEventStreamLine (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:73:9)
+    at Object.feed (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:61:7)
+    at IncomingMessage.<anonymous> (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1789:42)
+    at IncomingMessage.emit (node:events:508:28)
+    at Readable.read (node:internal/streams/readable:780:10)
+    at flow (node:internal/streams/readable:1286:53)
+    at resume_ (node:internal/streams/readable:1265:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)[39m
+[93m[2026-01-14 16:46:02.871][warning][index<1387,22>] Try again after 5s...[39m
+[37m[2026-01-14 16:46:02.871][debug][index<1712,24>] SSE Event: event_type=2003, has_event_data=true[39m
+[37m[2026-01-14 16:46:02.871][debug][index<1717,26>] Stream ended (2003), content length: 0, references: 0[39m
+[96m[2026-01-14 16:46:07.871][info][index<1336,20>] [ { role: 'user', content: '你好，用一句话介绍你自己' } ][39m
+[96m[2026-01-14 16:46:07.872][info][index<1508,18>] 本次请求上传：0个文件[39m
+[96m[2026-01-14 16:46:07.872][info][index<1524,20>] 
+透传内容：
+你好，用一句话介绍你自己
+[39m
+[96m[2026-01-14 16:46:07.872][info][index<1302,20>] 请求参数: {"aid":"497858","device_id":"7898804305030246000","device_platform":"web","language":"zh","pc_version":"2.23.2","pkg_type":"release_version","real_aid":"497858","region":"CN","samantha_web":1,"sys_region":"CN","tea_uuid":"7211679543263597000","use_olympus_account":1,"version_code":"20800","web_id":"7211679543263597000","msToken":"_bD7y7uAkGHHIadclvjoOuilTL7ejKGQ8THyO_9P2AGXOpJMQ1KIiqe2gSocXnzNw1Nu-JLDpr55jhcdffbJd5EbBx2VZUe4jvAnuyHNiPaRcxAqfpvdRKLd9zZxN0BM","a_bogus":"mf-8DvncOFeGb892SkEhVMMXWY1[39m
+[37m[2026-01-14 16:46:08.045][debug][index<1712,24>] SSE Event: event_type=2005, has_event_data=true[39m
+[93m[2026-01-14 16:46:08.046][warning][index<1728,28>] 豆包服务器返回错误 (2005): 当前服务访问频繁，请稍后重试 (code: 710022002)[39m
+[91m[2026-01-14 16:46:08.046][error][index<1785,24>] APIException [Error]: [请求doubao失败]: 当前服务访问频繁，请稍后重试 (code: 710022002)
+    at file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1729:19
+    at parseEventStreamLine (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:73:9)
+    at Object.feed (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:61:7)
+    at IncomingMessage.<anonymous> (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1789:42)
+    at IncomingMessage.emit (node:events:508:28)
+    at Readable.read (node:internal/streams/readable:780:10)
+    at flow (node:internal/streams/readable:1286:53)
+    at resume_ (node:internal/streams/readable:1265:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errcode: -2001,
+  errmsg: '[请求doubao失败]: 当前服务访问频繁，请稍后重试 (code: 710022002)',
+  data: undefined,
+  httpStatusCode: undefined
+}[39m
+[91m[2026-01-14 16:46:08.046][error][index<1386,22>] Stream response error: Error: [请求doubao失败]: 当前服务访问频繁，请稍后重试 (code: 710022002)
+    at file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1729:19
+    at parseEventStreamLine (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:73:9)
+    at Object.feed (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:61:7)
+    at IncomingMessage.<anonymous> (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1789:42)
+    at IncomingMessage.emit (node:events:508:28)
+    at Readable.read (node:internal/streams/readable:780:10)
+    at flow (node:internal/streams/readable:1286:53)
+    at resume_ (node:internal/streams/readable:1265:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)[39m
+[93m[2026-01-14 16:46:08.046][warning][index<1387,22>] Try again after 5s...[39m
+[37m[2026-01-14 16:46:08.054][debug][index<1712,24>] SSE Event: event_type=2003, has_event_data=true[39m
+[37m[2026-01-14 16:46:08.054][debug][index<1717,26>] Stream ended (2003), content length: 0, references: 0[39m
+[96m[2026-01-14 16:46:13.048][info][index<1336,20>] [ { role: 'user', content: '你好，用一句话介绍你自己' } ][39m
+[96m[2026-01-14 16:46:13.049][info][index<1508,18>] 本次请求上传：0个文件[39m
+[96m[2026-01-14 16:46:13.049][info][index<1524,20>] 
+透传内容：
+你好，用一句话介绍你自己
+[39m
+[96m[2026-01-14 16:46:13.050][info][index<1302,20>] 请求参数: {"aid":"497858","device_id":"7898804305030246000","device_platform":"web","language":"zh","pc_version":"2.23.2","pkg_type":"release_version","real_aid":"497858","region":"CN","samantha_web":1,"sys_region":"CN","tea_uuid":"7211679543263597000","use_olympus_account":1,"version_code":"20800","web_id":"7211679543263597000","msToken":"E7xGduVbk-PB1wSr8_lbzZw2Ko-G4WpvAS12kAOUauf_TWg1fpJxgrZnqmIu4LmELYyqtQyxVg0DxnZgAB9aR_MEMU1z89vt0QU-AyV8iHPpbt3oS8pOKL_s5Wn9Bunt","a_bogus":"mf-BrkEKGTiWaqa86v1Au5UJL0j[39m
+[37m[2026-01-14 16:46:13.359][debug][index<1712,24>] SSE Event: event_type=2005, has_event_data=true[39m
+[93m[2026-01-14 16:46:13.360][warning][index<1728,28>] 豆包服务器返回错误 (2005): 当前服务访问频繁，请稍后重试 (code: 710022002)[39m
+[91m[2026-01-14 16:46:13.360][error][index<1785,24>] APIException [Error]: [请求doubao失败]: 当前服务访问频繁，请稍后重试 (code: 710022002)
+    at file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1729:19
+    at parseEventStreamLine (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:73:9)
+    at Object.feed (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:61:7)
+    at IncomingMessage.<anonymous> (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1789:42)
+    at IncomingMessage.emit (node:events:508:28)
+    at Readable.read (node:internal/streams/readable:780:10)
+    at flow (node:internal/streams/readable:1286:53)
+    at resume_ (node:internal/streams/readable:1265:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errcode: -2001,
+  errmsg: '[请求doubao失败]: 当前服务访问频繁，请稍后重试 (code: 710022002)',
+  data: undefined,
+  httpStatusCode: undefined
+}[39m
+[91m[2026-01-14 16:46:13.361][error][index<1386,22>] Stream response error: Error: [请求doubao失败]: 当前服务访问频繁，请稍后重试 (code: 710022002)
+    at file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1729:19
+    at parseEventStreamLine (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:73:9)
+    at Object.feed (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:61:7)
+    at IncomingMessage.<anonymous> (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1789:42)
+    at IncomingMessage.emit (node:events:508:28)
+    at Readable.read (node:internal/streams/readable:780:10)
+    at flow (node:internal/streams/readable:1286:53)
+    at resume_ (node:internal/streams/readable:1265:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)[39m
+[93m[2026-01-14 16:46:13.361][warning][index<1387,22>] Try again after 5s...[39m
+[37m[2026-01-14 16:46:13.361][debug][index<1712,24>] SSE Event: event_type=2003, has_event_data=true[39m
+[37m[2026-01-14 16:46:13.361][debug][index<1717,26>] Stream ended (2003), content length: 0, references: 0[39m
+[96m[2026-01-14 16:46:18.362][info][index<1336,20>] [ { role: 'user', content: '你好，用一句话介绍你自己' } ][39m
+[96m[2026-01-14 16:46:18.364][info][index<1508,18>] 本次请求上传：0个文件[39m
+[96m[2026-01-14 16:46:18.364][info][index<1524,20>] 
+透传内容：
+你好，用一句话介绍你自己
+[39m
+[96m[2026-01-14 16:46:18.365][info][index<1302,20>] 请求参数: {"aid":"497858","device_id":"7898804305030246000","device_platform":"web","language":"zh","pc_version":"2.23.2","pkg_type":"release_version","real_aid":"497858","region":"CN","samantha_web":1,"sys_region":"CN","tea_uuid":"7211679543263597000","use_olympus_account":1,"version_code":"20800","web_id":"7211679543263597000","msToken":"wwjds4Axp__TBGZNKFR8A5fzGcVDymY8U-E7peDTHaaMqktdDfy_NrBXazVEkEZH_90B6xEu3MfSUxXqRqpBdWSdahpLLPUTSDyjfmv8ZwCPayw0E9rNTKCvVGAWRV8M","a_bogus":"mf-WRx2TiPAekwWj3p14LuYhdPB[39m
+[37m[2026-01-14 16:46:18.543][debug][index<1712,24>] SSE Event: event_type=2005, has_event_data=true[39m
+[93m[2026-01-14 16:46:18.544][warning][index<1728,28>] 豆包服务器返回错误 (2005): 当前服务访问频繁，请稍后重试 (code: 710022002)[39m
+[91m[2026-01-14 16:46:18.544][error][index<1785,24>] APIException [Error]: [请求doubao失败]: 当前服务访问频繁，请稍后重试 (code: 710022002)
+    at file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1729:19
+    at parseEventStreamLine (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:73:9)
+    at Object.feed (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:61:7)
+    at IncomingMessage.<anonymous> (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1789:42)
+    at IncomingMessage.emit (node:events:508:28)
+    at Readable.read (node:internal/streams/readable:780:10)
+    at flow (node:internal/streams/readable:1286:53)
+    at resume_ (node:internal/streams/readable:1265:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errcode: -2001,
+  errmsg: '[请求doubao失败]: 当前服务访问频繁，请稍后重试 (code: 710022002)',
+  data: undefined,
+  httpStatusCode: undefined
+}[39m
+[91m[2026-01-14 16:46:18.545][error][index<1036,28>] APIException [Error]: [请求doubao失败]: 当前服务访问频繁，请稍后重试 (code: 710022002)
+    at file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1729:19
+    at parseEventStreamLine (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:73:9)
+    at Object.feed (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/node_modules/eventsource-parser/dist/index.js:61:7)
+    at IncomingMessage.<anonymous> (file:///Users/jiacongdediannao/Desktop/%E6%88%91%E7%9A%84%E5%B7%A5%E5%85%B7%E4%BB%A5%E5%8F%8A%E9%A1%B9%E7%9B%AE/%E5%B7%A5%E5%85%B7/%E9%80%86%E5%90%91/doubao4/doubao-free-api-llm/dist/index.js:1789:42)
+    at IncomingMessage.emit (node:events:508:28)
+    at Readable.read (node:internal/streams/readable:780:10)
+    at flow (node:internal/streams/readable:1286:53)
+    at resume_ (node:internal/streams/readable:1265:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errcode: -2001,
+  errmsg: '[请求doubao失败]: 当前服务访问频繁，请稍后重试 (code: 710022002)',
+  data: undefined,
+  httpStatusCode: undefined
+}[39m
+[96m[2026-01-14 16:46:18.546][info][index<987,30>] <- POST /v1/chat/completions 16054ms[39m
+[37m[2026-01-14 16:46:18.548][debug][index<1712,24>] SSE Event: event_type=2003, has_event_data=true[39m
+[37m[2026-01-14 16:46:18.549][debug][index<1717,26>] Stream ended (2003), content length: 0, references: 0[39m
+[93m[2026-01-14 16:46:18.577][warning][index<689,18>] received kill signal[39m
+[96m[2026-01-14 16:46:18.578][info][index<685,18>] Service exit[39m

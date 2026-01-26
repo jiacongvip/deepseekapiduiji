@@ -1,0 +1,50 @@
+[32m[2026-01-14 17:07:25.584][success][index<967,20>] Server initialized[39m
+[96m[2026-01-14 17:07:25.586][info][index<2565,18>] <<<< doubao free server >>>>[39m
+[96m[2026-01-14 17:07:25.586][info][index<2566,18>] Version: 0.0.2[39m
+[96m[2026-01-14 17:07:25.586][info][index<2567,18>] Process id: 44766[39m
+[96m[2026-01-14 17:07:25.586][info][index<2568,18>] Environment: dev[39m
+[96m[2026-01-14 17:07:25.586][info][index<2569,18>] Service name: doubao-free-api[39m
+[96m[2026-01-14 17:07:25.587][info][index<991,22>] Route  attached[39m
+[96m[2026-01-14 17:07:25.587][info][index<991,22>] Route /v1/chat attached[39m
+[96m[2026-01-14 17:07:25.587][info][index<991,22>] Route /ping attached[39m
+[96m[2026-01-14 17:07:25.587][info][index<991,22>] Route /token attached[39m
+[96m[2026-01-14 17:07:25.587][info][index<991,22>] Route /v1 attached[39m
+[32m[2026-01-14 17:07:25.589][success][index<1080,20>] Server listening on port 18087 (127.0.0.1)[39m
+[32m[2026-01-14 17:07:25.589][success][index<2574,24>] Service startup completed (3ms)[39m
+[96m[2026-01-14 17:07:25.637][info][index<1017,26>] -> GET /ping[39m
+[96m[2026-01-14 17:07:25.637][info][index<987,30>] <- GET /ping 0ms[39m
+[96m[2026-01-14 17:07:25.739][info][index<1017,26>] -> POST /v1/chat/completions[39m
+[96m[2026-01-14 17:07:25.739][info][index<1411,20>] [ { role: 'user', content: '你好，用一句话介绍你自己' } ][39m
+[96m[2026-01-14 17:07:25.739][info][index<1514,18>] 本次请求上传：0个文件[39m
+[96m[2026-01-14 17:07:25.739][info][index<1530,20>] 
+透传内容：
+你好，用一句话介绍你自己
+[39m
+[96m[2026-01-14 17:07:25.740][info][index<1310,20>] 请求参数: {"aid":"497858","device_id":"7586602724335535679","device_platform":"web","language":"zh","pc_version":"3.1.2","pkg_type":"release_version","real_aid":"497858","samantha_web":1,"tea_uuid":"7594387748275389952","version_code":"20800","web_id":"7594387748275389952","region":"CN","sys_region":"CN","fp":"verify_mkby4ki3_TANyyisy_z9K9_49Ao_8JJP_4qmUIcAz6ANj","use-olympus-account":1}[39m
+[96m[2026-01-14 17:07:26.299][info][index<987,30>] <- POST /v1/chat/completions 559ms[39m
+[37m[2026-01-14 17:07:26.300][debug][index<1827,22>] 原始SSE事件: {"event_data":"{\"message_id\":\"35805049576740610\",\"local_message_id\":\"71b887b0-f128-11f0-9b11-d79f8ed9a926\",\"conversation_id\":\"35766025560525314\",\"local_conversation_id\":\"local_166719854...[39m
+[37m[2026-01-14 17:07:26.301][debug][index<1833,22>] 解析后: event_type=2002, has_event_data=true[39m
+[37m[2026-01-14 17:07:26.301][debug][index<1871,24>] 跳过非2001事件: event_type=2002[39m
+[37m[2026-01-14 17:07:26.921][debug][index<1827,22>] 原始SSE事件: {"event_data":"{\"type\":\"seed_intention\",\"seed_intention\":{\"intention\":\"seed_main\",\"detail\":\"default\",\"seed_agent_name\":\"Agent-Chat\",\"intention_detail_dict\":\"{\\\"plugin_intention\...[39m
+[37m[2026-01-14 17:07:26.921][debug][index<1833,22>] 解析后: event_type=2010, has_event_data=true[39m
+[37m[2026-01-14 17:07:26.921][debug][index<1871,24>] 跳过非2001事件: event_type=2010[39m
+[37m[2026-01-14 17:07:27.442][debug][index<1827,22>] 原始SSE事件: {"event_data":"{\"message\":{\"content_type\":2001,\"content\":\"{\\\"text\\\":\\\"我\\\"}\",\"id\":\"f61ebba1-9e87-4c9a-8584-ba9b1ebd23f3\"},\"message_id\":\"35805049576740866\",\"local_message_id\":\...[39m
+[37m[2026-01-14 17:07:27.481][debug][index<1833,22>] 解析后: event_type=2001, has_event_data=true[39m
+[96m[2026-01-14 17:07:27.481][info][index<1881,22>] 处理事件: is_finish=undefined, has_message=true, message_keys=content_type,content,id[39m
+[96m[2026-01-14 17:07:27.481][info][index<1883,24>] Message详情: content_type=2001, content类型=string, content长度=12[39m
+[37m[2026-01-14 17:07:27.481][debug][index<1929,22>] 处理消息: content_type=2001, content长度=12, content类型=string[39m
+[96m[2026-01-14 17:07:27.483][info][index<1945,26>] ✅ 提取文本成功: 我... (长度: 1)[39m
+[37m[2026-01-14 17:07:27.585][debug][index<1827,22>] 原始SSE事件: {"event_data":"{\"message\":{\"content_type\":2001,\"content\":\"{\\\"text\\\":\\\"是豆包，一个能\\\"}\",\"id\":\"f61ebba1-9e87-4c9a-8584-ba9b1ebd23f3\"},\"message_id\":\"35805049576740866\",\"local_message_...[39m
+[37m[2026-01-14 17:07:27.585][debug][index<1833,22>] 解析后: event_type=2001, has_event_data=true[39m
+[96m[2026-01-14 17:07:27.585][info][index<1881,22>] 处理事件: is_finish=undefined, has_message=true, message_keys=content_type,content,id[39m
+[96m[2026-01-14 17:07:27.585][info][index<1883,24>] Message详情: content_type=2001, content类型=string, content长度=18[39m
+[37m[2026-01-14 17:07:27.586][debug][index<1929,22>] 处理消息: content_type=2001, content长度=18, content类型=string[39m
+[96m[2026-01-14 17:07:27.586][info][index<1945,26>] ✅ 提取文本成功: 是豆包，一个能... (长度: 7)[39m
+[37m[2026-01-14 17:07:27.727][debug][index<1827,22>] 原始SSE事件: {"event_data":"{\"message\":{\"content_type\":2001,\"content\":\"{\\\"text\\\":\\\"为你提供技术方案、育儿\\\"}\",\"id\":\"f61ebba1-9e87-4c9a-8584-ba9b1ebd23f3\"},\"message_id\":\"35805049576740866\",\"local_mess...[39m
+[37m[2026-01-14 17:07:27.728][debug][index<1833,22>] 解析后: event_type=2001, has_event_data=true[39m
+[96m[2026-01-14 17:07:27.728][info][index<1881,22>] 处理事件: is_finish=undefined, has_message=true, message_keys=content_type,content,id[39m
+[96m[2026-01-14 17:07:27.729][info][index<1883,24>] Message详情: content_type=2001, content类型=string, content长度=22[39m
+[37m[2026-01-14 17:07:27.730][debug][index<1929,22>] 处理消息: content_type=2001, content长度=22, content类型=string[39m
+[96m[2026-01-14 17:07:27.730][info][index<1945,26>] ✅ 提取文本成功: 为你提供技术方案、育儿... (长度: 11)[39m
+[93m[2026-01-14 17:07:27.757][warning][index<689,18>] received kill signal[39m
+[96m[2026-01-14 17:07:27.757][info][index<685,18>] Service exit[39m

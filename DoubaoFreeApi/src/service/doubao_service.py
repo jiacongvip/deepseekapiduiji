@@ -236,7 +236,7 @@ async def handle_sse(response: aiohttp.ClientResponse):
                         text_block = block.get("content", {}).get("text_block", {})
                         if text := text_block.get("text"):
                             texts.append(text)
-
+                            
                 elif event_type == "STREAM_CHUNK":
                     # Patch updates
                     patch_ops = data.get("patch_op", [])
@@ -253,6 +253,13 @@ async def handle_sse(response: aiohttp.ClientResponse):
                         
                         # Handle image updates? (Need to investigate structure if needed)
                         
+                elif event_type == "message":
+                    # Some responses use simple 'message' event for full content or delta
+                    # This is a fallback based on observation of similar APIs
+                    content = data.get("content", "")
+                    if content and isinstance(content, str):
+                        texts.append(content)
+                
                 elif event_type == "SSE_REPLY_END":
                     # End of reply
                     logger.debug("SSE_REPLY_END received")

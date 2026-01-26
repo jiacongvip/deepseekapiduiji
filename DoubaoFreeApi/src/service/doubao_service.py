@@ -266,27 +266,39 @@ async def handle_sse(response: aiohttp.ClientResponse):
                             tts_text = patch_value["tts_content"]
                             # Simple heuristic: if we haven't just appended this text
                             if tts_text and (not texts or texts[-1] != tts_text):
+                                # Split by chars to detect if we are appending a single char or a full string that grows
+                                # Doubao TTS chunks are usually single chars.
                                 texts.append(tts_text)
 
                 elif event_type == "FULL_MSG_NOTIFY":
                     # Full message content in one go
                     message = data.get("message", {})
-                    content_str = message.get("content", "")
-                    if content_str:
-                         try:
-                             # Try to parse content as JSON list of blocks
-                             content_blocks = json.loads(content_str)
-                             if isinstance(content_blocks, list):
-                                 for block in content_blocks:
-                                     text_block = block.get("content", {}).get("text_block", {})
-                                     if text := text_block.get("text"):
-                                         texts.append(text)
-                             else:
-                                 # Fallback if not list
-                                 texts.append(str(content_str))
-                         except:
-                             # Fallback if not JSON
-                             texts.append(content_str)
+                    
+                    # 优先使用 content_block 如果存在（解析后的）
+                    if "content_block" in message:
+                        content_blocks = message.get("content_block", [])
+                        for block in content_blocks:
+                             text_block = block.get("content", {}).get("text_block", {})
+                             if text := text_block.get("text"):
+                                 texts.append(text)
+                    else:
+                        # 否则尝试解析 content 字符串
+                        content_str = message.get("content", "")
+                        if content_str:
+                             try:
+                                 # Try to parse content as JSON list of blocks
+                                 content_blocks = json.loads(content_str)
+                                 if isinstance(content_blocks, list):
+                                     for block in content_blocks:
+                                         text_block = block.get("content", {}).get("text_block", {})
+                                         if text := text_block.get("text"):
+                                             texts.append(text)
+                                 else:
+                                     # Fallback if not list
+                                     texts.append(str(content_str))
+                             except:
+                                 # Fallback if not JSON
+                                 texts.append(content_str)
                         
                 elif event_type == "message" or event_type == "implicit_message":
                     # Some responses use simple 'message' event for full content or delta

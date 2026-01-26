@@ -268,7 +268,25 @@ async def handle_sse(response: aiohttp.ClientResponse):
                             if tts_text and (not texts or texts[-1] != tts_text):
                                 texts.append(tts_text)
 
-                        # Handle image updates? (Need to investigate structure if needed)
+                elif event_type == "FULL_MSG_NOTIFY":
+                    # Full message content in one go
+                    message = data.get("message", {})
+                    content_str = message.get("content", "")
+                    if content_str:
+                         try:
+                             # Try to parse content as JSON list of blocks
+                             content_blocks = json.loads(content_str)
+                             if isinstance(content_blocks, list):
+                                 for block in content_blocks:
+                                     text_block = block.get("content", {}).get("text_block", {})
+                                     if text := text_block.get("text"):
+                                         texts.append(text)
+                             else:
+                                 # Fallback if not list
+                                 texts.append(str(content_str))
+                         except:
+                             # Fallback if not JSON
+                             texts.append(content_str)
                         
                 elif event_type == "message" or event_type == "implicit_message":
                     # Some responses use simple 'message' event for full content or delta

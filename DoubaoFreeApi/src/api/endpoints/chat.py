@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Body, Query, HTTPException, Header
+from fastapi.responses import StreamingResponse
 from src.service import chat_completion, delete_conversation
 from src.model.response import CompletionResponse, DeleteResponse
 from src.model.request import CompletionRequest
@@ -6,33 +7,90 @@ from src.pool.session_pool import DoubaoSession
 from typing import Optional
 from loguru import logger
 import json
+import uuid
+import time
 
 
 router = APIRouter()
 
 
-@router.post("/completions", response_model=CompletionResponse)
+def create_openai_response(text: str, conv_id: str = "", model: str = "doubao-pro-4k"):
+    """创建 OpenAI 兼容的非流式响应"""
+    return {
+        "id": f"chatcmpl-{conv_id or uuid.uuid4()}",
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": text
+                },
+                "finish_reason": "stop"
+            }
+        ],
+        "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": len(text),
+            "total_tokens": len(text)
+        }
+    }
+
+
+def create_openai_stream_chunk(content: str, conv_id: str = "", model: str = "doubao-pro-4k", is_first: bool = False, is_done: bool = False):
+    """创建 OpenAI 兼容的流式响应 chunk"""
+    if is_done:
+        return {
+            "id": f"chatcmpl-{conv_id or uuid.uuid4()}",
+            "object": "chat.completion.chunk",
+            "created": int(time.time()),
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {},
+                    "finish_reason": "stop"
+                }
+            ]
+        }
+    
+    delta = {"content": content}
+    if is_first:
+        delta["role"] = "assistant"
+    
+    return {
+        "id": f"chatcmpl-{conv_id or uuid.uuid4()}",
+        "object": "chat.completion.chunk",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "delta": delta,
+                "finish_reason": None
+            }
+        ]
+    }
+
+
+@router.post("/completions")
 async def api_completions(
     completion: CompletionRequest = Body(),
     authorization: Optional[str] = Header(None)
 ):
     """
-    豆包聊天补全接口(目前仅支持文字消息e和图片消息)
-    1. 如果是新聊天 conversation_id, section_id**不填**
-    2. 如果沿用之前的聊天, 则沿用**第一次对话**返回的 conversation_id 和 section_id, 会话池会使用之前的参数
-    3. 目前如果使用未登录账号，那么不支持上下文
+    豆包聊天补全接口 - OpenAI 兼容格式
+    支持流式和非流式响应
     """
     session_override = None
     if authorization:
         try:
-            # The gateway sends "Bearer <json_string>"
             token_str = authorization.replace("Bearer ", "").strip()
-            # Basic validation to see if it looks like JSON
             if token_str.startswith("{") and token_str.endswith("}"):
                 session_data = json.loads(token_str)
-                # Ensure it has the critical cookie field
                 if "cookie" in session_data:
-                    # Construct DoubaoSession with defaults for missing fields
                     session_override = DoubaoSession(
                         cookie=session_data.get("cookie", ""),
                         device_id=session_data.get("device_id", "0"),
@@ -44,49 +102,122 @@ async def api_completions(
         except Exception as e:
             logger.warning(f"Failed to parse Authorization header as session config: {e}")
 
-    # Compatibility logic: Convert OpenAI messages to prompt
+    # Convert OpenAI messages to prompt
     prompt = completion.prompt
     if not prompt and completion.messages:
-        # Simple concatenation or taking the last user message
-        # For simplicity, we'll take the content of the last message from user
         for msg in reversed(completion.messages):
             if msg.get("role") == "user":
-                prompt = msg.get("content")
+                content = msg.get("content")
+                # Handle multimodal content (list format)
+                if isinstance(content, list):
+                    text_parts = []
+                    for item in content:
+                        if isinstance(item, dict) and item.get("type") == "text":
+                            text_parts.append(item.get("text", ""))
+                        elif isinstance(item, str):
+                            text_parts.append(item)
+                    prompt = "\n".join(text_parts)
+                else:
+                    prompt = content
                 break
     
     if not prompt:
         raise HTTPException(status_code=400, detail="Field 'prompt' or 'messages' (with user content) is required")
 
-    try:
-        logger.info(f"收到聊天请求: prompt长度={len(prompt) if prompt else 0}, guest={completion.guest}, conversation_id={completion.conversation_id}")
-        text, imgs, conv_id, msg_id, sec_id = await chat_completion(
-            prompt=prompt,
-            guest=completion.guest,
-            conversation_id=completion.conversation_id,
-            section_id=completion.section_id,
-            attachments=completion.attachments,
-            use_auto_cot=completion.use_auto_cot,
-            use_deep_think=completion.use_deep_think,
-            session_override=session_override
-        )
-        logger.info(f"聊天完成: text长度={len(text) if text else 0}, conversation_id={conv_id}, section_id={sec_id}")
-        if not text or text.strip() == '':
-            logger.warning("警告: 返回的文本内容为空!")
-        else:
-            logger.debug(f"返回文本预览: {text[:100]}...")
+    model = completion.model or "doubao-pro-4k"
+    stream = completion.stream or False
+    
+    # 检查模型名是否包含 deep，启用深度思考
+    use_deep_think = completion.use_deep_think or ("deep" in model.lower())
+    
+    logger.info(f"收到聊天请求: prompt长度={len(prompt)}, stream={stream}, model={model}, use_deep_think={use_deep_think}")
+
+    if stream:
+        # 流式响应
+        async def generate_stream():
+            try:
+                text, imgs, conv_id, msg_id, sec_id = await chat_completion(
+                    prompt=prompt,
+                    guest=completion.guest,
+                    conversation_id=completion.conversation_id,
+                    section_id=completion.section_id,
+                    attachments=completion.attachments,
+                    use_auto_cot=completion.use_auto_cot,
+                    use_deep_think=use_deep_think,
+                    session_override=session_override
+                )
+                
+                logger.info(f"聊天完成: text长度={len(text) if text else 0}")
+                
+                if text:
+                    # 发送第一个 chunk（包含 role）
+                    first_chunk = create_openai_stream_chunk("", conv_id, model, is_first=True)
+                    yield f"data: {json.dumps(first_chunk)}\n\n"
+                    
+                    # 分块发送内容（模拟流式效果）
+                    chunk_size = 10  # 每次发送的字符数
+                    for i in range(0, len(text), chunk_size):
+                        chunk_text = text[i:i+chunk_size]
+                        chunk = create_openai_stream_chunk(chunk_text, conv_id, model)
+                        yield f"data: {json.dumps(chunk)}\n\n"
+                    
+                    # 发送结束 chunk
+                    done_chunk = create_openai_stream_chunk("", conv_id, model, is_done=True)
+                    yield f"data: {json.dumps(done_chunk)}\n\n"
+                else:
+                    # 空响应
+                    error_chunk = create_openai_stream_chunk("抱歉，未能获取到回复内容。", conv_id, model, is_first=True)
+                    yield f"data: {json.dumps(error_chunk)}\n\n"
+                    done_chunk = create_openai_stream_chunk("", conv_id, model, is_done=True)
+                    yield f"data: {json.dumps(done_chunk)}\n\n"
+                
+                yield "data: [DONE]\n\n"
+                
+            except Exception as e:
+                logger.error(f"流式响应错误: {e}", exc_info=True)
+                error_response = {
+                    "error": {
+                        "message": str(e),
+                        "type": "server_error",
+                        "code": 500
+                    }
+                }
+                yield f"data: {json.dumps(error_response)}\n\n"
         
-        response = CompletionResponse(
-            text=text or "", 
-            img_urls=imgs or [], 
-            conversation_id=conv_id or "", 
-            messageg_id=msg_id or "", 
-            section_id=sec_id or ""
+        return StreamingResponse(
+            generate_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+                "Access-Control-Allow-Origin": "*",
+            }
         )
-        logger.debug(f"准备返回响应: text长度={len(response.text)}, img_urls数量={len(response.img_urls)}")
-        return response
-    except Exception as e:
-        logger.error(f"聊天请求处理失败: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    else:
+        # 非流式响应
+        try:
+            text, imgs, conv_id, msg_id, sec_id = await chat_completion(
+                prompt=prompt,
+                guest=completion.guest,
+                conversation_id=completion.conversation_id,
+                section_id=completion.section_id,
+                attachments=completion.attachments,
+                use_auto_cot=completion.use_auto_cot,
+                use_deep_think=use_deep_think,
+                session_override=session_override
+            )
+            
+            logger.info(f"聊天完成: text长度={len(text) if text else 0}, conversation_id={conv_id}")
+            
+            if not text:
+                text = "抱歉，未能获取到回复内容。"
+            
+            return create_openai_response(text, conv_id, model)
+            
+        except Exception as e:
+            logger.error(f"聊天请求处理失败: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
 
 
 

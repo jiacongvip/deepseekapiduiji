@@ -316,13 +316,14 @@ async def handle_sse_stream(response: aiohttp.ClientResponse, session: DoubaoSes
 
 
 async def handle_sse(response: aiohttp.ClientResponse):
-    """处理SSE流响应 (New Protocol)"""
+    """处理SSE流响应 - 支持新旧两种协议格式"""
     buffer = ""
     conversation_id = ""
     message_id = ""
     section_id = ""
     texts = []
     image_urls = []
+    is_end = False
     
     async for chunk in response.content.iter_chunked(1024):
         buffer += chunk.decode('utf-8', errors='replace')
@@ -340,8 +341,18 @@ async def handle_sse(response: aiohttp.ClientResponse):
                 except Exception as e:
                     raise Exception(f"服务器返回网关错误: {buffer}")
         
-        while '\n\n' in buffer:
-            evt, buffer = buffer.split('\n\n', 1)
+        # 处理 SSE 事件（按行分割）
+        while '\n' in buffer:
+            # 找到完整的一行或一个事件块
+            if '\n\n' in buffer:
+                evt, buffer = buffer.split('\n\n', 1)
+            elif buffer.endswith('\n'):
+                evt = buffer.rstrip('\n')
+                buffer = ""
+            else:
+                # 等待更多数据
+                break
+            
             lines = evt.strip().split('\n')
             
             # Debug: print every event
@@ -356,142 +367,199 @@ async def handle_sse(response: aiohttp.ClientResponse):
                 elif line.startswith("data: "):
                     data_str = line[6:].strip()
             
-            # Fallback: if no event type but has data, treat as message/chunk
-            if not event_type and data_str:
-                event_type = "implicit_message"
-            
-            if not event_type or not data_str:
+            if not data_str:
                 continue
             
             try:
                 data = json.loads(data_str)
                 
+                # ========== 旧协议格式 (event_type 为数字) ==========
+                # 格式: data: {"event_type": 2001, "event_data": "{...}"}
+                if "event_type" in data and isinstance(data.get("event_type"), int):
+                    raw_event_type = data.get("event_type")
+                    event_data_str = data.get("event_data", "")
+                    
+                    logger.debug(f"旧协议 event_type={raw_event_type}, has_event_data={bool(event_data_str)}")
+                    
+                    # 错误检查
+                    if data.get("code"):
+                        raise Exception(f"豆包返回错误: {data.get('code')} - {data.get('message')}")
+                    
+                    # event_type == 2002: 开始，获取 conversation_id
+                    if raw_event_type == 2002:
+                        try:
+                            start_result = json.loads(event_data_str) if event_data_str else {}
+                            if start_result.get("conversation_id"):
+                                conversation_id = start_result["conversation_id"]
+                                logger.debug(f"旧协议 2002: conversation_id={conversation_id}")
+                        except:
+                            pass
+                        continue
+                    
+                    # event_type == 2003: 结束
+                    if raw_event_type == 2003:
+                        is_end = True
+                        logger.debug("旧协议 2003: 流结束")
+                        continue
+                    
+                    # event_type == 2005: 错误
+                    if raw_event_type == 2005:
+                        try:
+                            error_result = json.loads(event_data_str) if event_data_str else {}
+                            if error_result.get("code"):
+                                error_msg = error_result.get("error_detail", {}).get("message") or error_result.get("message") or "未知错误"
+                                logger.warning(f"旧协议 2005 错误: {error_msg}")
+                                raise Exception(f"豆包服务器错误: {error_msg}")
+                        except json.JSONDecodeError:
+                            pass
+                        continue
+                    
+                    # event_type == 2001: 消息内容
+                    if raw_event_type == 2001:
+                        try:
+                            result = json.loads(event_data_str) if event_data_str else {}
+                            
+                            # 检查是否结束
+                            if result.get("is_finish"):
+                                is_end = True
+                                logger.debug("旧协议 2001: is_finish=True, 流结束")
+                            
+                            # 获取 conversation_id
+                            if not conversation_id and result.get("conversation_id"):
+                                conversation_id = result["conversation_id"]
+                            
+                            # 提取消息内容
+                            message = result.get("message", {})
+                            if message:
+                                content_type = message.get("content_type")
+                                # 支持的 content_type: 10000, 2001, 2008
+                                if content_type in [10000, 2001, 2008, None]:
+                                    content = message.get("content")
+                                    if content:
+                                        try:
+                                            # content 可能是 JSON 字符串
+                                            if isinstance(content, str):
+                                                content_data = json.loads(content)
+                                            else:
+                                                content_data = content
+                                            
+                                            # 提取文本
+                                            content_text = content_data.get("text", "")
+                                            if content_text:
+                                                texts.append(content_text)
+                                                logger.debug(f"旧协议提取文本: {content_text[:50]}... (长度: {len(content_text)})")
+                                        except json.JSONDecodeError:
+                                            # content 可能直接是文本
+                                            if isinstance(content, str) and content:
+                                                texts.append(content)
+                                                logger.debug(f"旧协议直接使用content: {content[:50]}...")
+                        except json.JSONDecodeError as e:
+                            logger.warning(f"旧协议解析 event_data 失败: {e}")
+                        continue
+                    
+                    # 其他 event_type 跳过
+                    logger.debug(f"旧协议跳过 event_type: {raw_event_type}")
+                    continue
+                
+                # ========== 新协议格式 (event 为字符串) ==========
+                # 格式: event: STREAM_CHUNK\ndata: {...}
+                if not event_type and data_str:
+                    event_type = "implicit_message"
+                
                 if event_type == "SSE_ACK":
-                    # Initial Ack
                     ack_meta = data.get("ack_client_meta", {})
-                    conversation_id = ack_meta.get("conversation_id")
-                    section_id = ack_meta.get("section_id")
-                    logger.debug(f"SSE_ACK: conv_id={conversation_id}, sec_id={section_id}")
+                    conversation_id = ack_meta.get("conversation_id", conversation_id)
+                    section_id = ack_meta.get("section_id", section_id)
+                    logger.debug(f"新协议 SSE_ACK: conv_id={conversation_id}, sec_id={section_id}")
                     
                 elif event_type == "STREAM_MSG_NOTIFY":
-                    # Start of message or message update
                     meta = data.get("meta", {})
                     if not conversation_id:
                         conversation_id = meta.get("conversation_id")
                     if not section_id:
                         section_id = meta.get("section_id")
                     message_id = meta.get("message_id")
-                    logger.debug(f"STREAM_MSG_NOTIFY: conv_id={conversation_id}, sec_id={section_id}, msg_id={message_id}")
+                    logger.debug(f"新协议 STREAM_MSG_NOTIFY: conv_id={conversation_id}, sec_id={section_id}")
                     
                     content = data.get("content", {})
                     blocks = content.get("content_block", [])
-                    logger.debug(f"STREAM_MSG_NOTIFY: 找到 {len(blocks)} 个 content_block")
                     for block in blocks:
                         text_block = block.get("content", {}).get("text_block", {})
                         if text := text_block.get("text"):
-                            logger.debug(f"从 STREAM_MSG_NOTIFY 提取文本: {text[:50]}...")
                             texts.append(text)
+                            logger.debug(f"新协议从 STREAM_MSG_NOTIFY 提取: {text[:50]}...")
                             
                 elif event_type == "STREAM_CHUNK":
-                    # Patch updates
                     patch_ops = data.get("patch_op", [])
-                    logger.debug(f"STREAM_CHUNK: 收到 {len(patch_ops)} 个 patch_op")
                     for op in patch_ops:
-                        patch_type = op.get("patch_type") # 1 usually
                         patch_value = op.get("patch_value", {})
-                        
                         chunk_text = ""
                         
-                        # Handle text updates from content_block (优先使用这个)
                         if "content_block" in patch_value:
                             for block in patch_value["content_block"]:
                                 text_block = block.get("content", {}).get("text_block", {})
                                 if text := text_block.get("text"):
-                                    chunk_text = text  # content_block 通常是完整的当前文本
-                                    logger.debug(f"从 content_block 提取文本: {text[:50]}...")
+                                    chunk_text = text
                         
-                        # Handle tts_content as a fallback or supplement
-                        # tts_content 可能是增量，也可能是完整文本
                         if "tts_content" in patch_value:
                             tts_text = patch_value["tts_content"]
-                            logger.debug(f"TTS Content found: {tts_text[:50] if tts_text else 'empty'}...")
-                            
-                            # 如果 content_block 没有文本，使用 tts_content
-                            # 如果两者都有，优先使用 content_block（通常更准确）
                             if not chunk_text and tts_text:
                                 chunk_text = tts_text
                             elif chunk_text and tts_text and len(tts_text) > len(chunk_text):
-                                # 如果 tts_content 更长，可能是累积的完整文本，使用它
                                 chunk_text = tts_text
                         
                         if chunk_text:
                             texts.append(chunk_text)
-                            logger.debug(f"已添加文本片段，当前总长度: {sum(len(t) for t in texts)}")
+                            logger.debug(f"新协议从 STREAM_CHUNK 提取: {chunk_text[:50]}...")
 
                 elif event_type == "FULL_MSG_NOTIFY":
-                    # Full message content in one go
                     message = data.get("message", {})
-                    
-                    # 优先使用 content_block 如果存在（解析后的）
                     if "content_block" in message:
-                        content_blocks = message.get("content_block", [])
-                        for block in content_blocks:
-                             text_block = block.get("content", {}).get("text_block", {})
-                             if text := text_block.get("text"):
-                                 texts.append(text)
+                        for block in message.get("content_block", []):
+                            text_block = block.get("content", {}).get("text_block", {})
+                            if text := text_block.get("text"):
+                                texts.append(text)
                     else:
-                        # 否则尝试解析 content 字符串
                         content_str = message.get("content", "")
                         if content_str:
-                             try:
-                                 # Try to parse content as JSON list of blocks
-                                 content_blocks = json.loads(content_str)
-                                 if isinstance(content_blocks, list):
-                                     for block in content_blocks:
-                                         text_block = block.get("content", {}).get("text_block", {})
-                                         if text := text_block.get("text"):
-                                             texts.append(text)
-                                 else:
-                                     # Fallback if not list
-                                     texts.append(str(content_str))
-                             except:
-                                 # Fallback if not JSON
-                                 # Clean up potential JSON artifacts if it was a failed parse but still meaningful
-                                 texts.append(str(content_str))
+                            try:
+                                content_blocks = json.loads(content_str)
+                                if isinstance(content_blocks, list):
+                                    for block in content_blocks:
+                                        text_block = block.get("content", {}).get("text_block", {})
+                                        if text := text_block.get("text"):
+                                            texts.append(text)
+                                else:
+                                    texts.append(str(content_str))
+                            except:
+                                texts.append(str(content_str))
 
-                elif event_type == "message" or event_type == "implicit_message":
-                    # Some responses use simple 'message' event for full content or delta
-                    # This is a fallback based on observation of similar APIs
-                    try:
-                        # Try to parse as JSON first
-                        if isinstance(data, dict):
-                             content = data.get("content", "")
-                             if content and isinstance(content, str):
-                                 texts.append(content)
-                        elif isinstance(data, str):
-                             texts.append(data)
-                    except:
-                        # If data is just a string
-                        if isinstance(data_str, str):
-                            texts.append(data_str)
+                elif event_type in ["message", "implicit_message"]:
+                    if isinstance(data, dict):
+                        content = data.get("content", "")
+                        if content and isinstance(content, str):
+                            texts.append(content)
+                    elif isinstance(data, str):
+                        texts.append(data)
                 
                 elif event_type == "SSE_REPLY_END":
-                    # End of reply
-                    logger.debug("SSE_REPLY_END received")
-                    # break # Don't break here, wait for stream to close naturally or next event
+                    is_end = True
+                    logger.debug("新协议 SSE_REPLY_END: 流结束")
                     
+            except json.JSONDecodeError as e:
+                logger.warning(f"JSON解析失败: {e}, data: {data_str[:100] if data_str else 'empty'}")
+                continue
             except Exception as e:
-                logger.warning(f"Error parsing event {event_type}: {e}")
+                logger.warning(f"处理事件失败 {event_type}: {e}")
                 continue
 
     text = "".join(texts)
-    logger.info(f"SSE流结束: 获取到文本长度={len(text)}, 文本片段数量={len(texts)}, conversation_id={conversation_id}, section_id={section_id}")
+    logger.info(f"SSE流结束: 文本长度={len(text)}, 片段数={len(texts)}, conv_id={conversation_id}, sec_id={section_id}")
     if text:
-        logger.debug(f"文本内容预览: {text[:200]}...")
+        logger.debug(f"文本预览: {text[:200]}...")
     else:
-        logger.warning("警告: SSE流解析后文本为空!")
-        if texts:
-            logger.warning(f"文本片段列表: {texts}")
+        logger.warning("警告: 解析后文本为空!")
+        logger.warning(f"收到的片段: {texts}")
     return text, image_urls, conversation_id, message_id, section_id
 
 

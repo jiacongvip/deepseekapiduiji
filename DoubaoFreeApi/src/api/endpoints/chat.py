@@ -14,6 +14,27 @@ import time
 router = APIRouter()
 
 
+def format_references_as_markdown(references: list) -> str:
+    """将引用列表格式化为 Markdown 文本，附加到内容末尾"""
+    if not references:
+        return ""
+    
+    lines = ["\n\n---\n**📚 参考来源：**\n"]
+    for i, ref in enumerate(references, 1):
+        title = ref.get('title', '未知标题')
+        url = ref.get('url', '')
+        sitename = ref.get('sitename', '')
+        
+        if url:
+            # Markdown 链接格式
+            site_info = f" ({sitename})" if sitename else ""
+            lines.append(f"{i}. [{title}]({url}){site_info}")
+        else:
+            lines.append(f"{i}. {title}")
+    
+    return "\n".join(lines)
+
+
 def create_openai_response(text: str, conv_id: str = "", model: str = "doubao-pro-4k", references: list = None):
     """创建 OpenAI 兼容的非流式响应"""
     message = {
@@ -147,14 +168,14 @@ async def api_completions(
         async def generate_stream():
             try:
                 text, imgs, refs, conv_id, msg_id, sec_id = await chat_completion(
-                    prompt=prompt,
-                    guest=completion.guest,
-                    conversation_id=completion.conversation_id,
-                    section_id=completion.section_id,
-                    attachments=completion.attachments,
-                    use_auto_cot=completion.use_auto_cot,
+            prompt=prompt,
+            guest=completion.guest,
+            conversation_id=completion.conversation_id,
+            section_id=completion.section_id,
+            attachments=completion.attachments,
+            use_auto_cot=completion.use_auto_cot,
                     use_deep_think=use_deep_think,
-                    session_override=session_override
+            session_override=session_override
                 )
                 
                 logger.info(f"聊天完成: text长度={len(text) if text else 0}, 引用数={len(refs) if refs else 0}")
@@ -164,14 +185,19 @@ async def api_completions(
                     first_chunk = create_openai_stream_chunk("", conv_id, model, is_first=True)
                     yield f"data: {json.dumps(first_chunk)}\n\n"
                     
+                    # 将引用格式化为 Markdown 并附加到内容末尾
+                    full_text = text
+                    if refs:
+                        full_text += format_references_as_markdown(refs)
+                    
                     # 分块发送内容（模拟流式效果）
                     chunk_size = 10  # 每次发送的字符数
-                    for i in range(0, len(text), chunk_size):
-                        chunk_text = text[i:i+chunk_size]
+                    for i in range(0, len(full_text), chunk_size):
+                        chunk_text = full_text[i:i+chunk_size]
                         chunk = create_openai_stream_chunk(chunk_text, conv_id, model)
                         yield f"data: {json.dumps(chunk)}\n\n"
                     
-                    # 发送结束 chunk（包含引用）
+                    # 发送结束 chunk（也附带引用元数据，供支持的客户端使用）
                     done_chunk = create_openai_stream_chunk("", conv_id, model, is_done=True, references=refs)
                     yield f"data: {json.dumps(done_chunk)}\n\n"
                 else:
@@ -223,11 +249,16 @@ async def api_completions(
             if not text:
                 text = "抱歉，未能获取到回复内容。"
             
-            return create_openai_response(text, conv_id, model, references=refs)
+            # 将引用格式化为 Markdown 并附加到内容末尾
+            full_text = text
+            if refs:
+                full_text += format_references_as_markdown(refs)
             
-        except Exception as e:
+            return create_openai_response(full_text, conv_id, model, references=refs)
+            
+    except Exception as e:
             logger.error(f"聊天请求处理失败: {str(e)}", exc_info=True)
-            raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 

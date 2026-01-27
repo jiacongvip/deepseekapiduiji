@@ -1000,6 +1000,7 @@ for chunk in response:
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let fullContent = '';
+                let references = [];
                 const assistantMsgWrapper = document.getElementById(assistantMsgId);
 
                 while (true) {
@@ -1016,9 +1017,22 @@ for chunk in response:
                             
                             try {
                                 const json = JSON.parse(data);
-                                const content = json.choices[0]?.delta?.content || ''; // 流式 delta
+                                const delta = json.choices?.[0]?.delta || {};
+                                const content = delta.content || ''; // 流式 delta
                                 fullContent += content;
-                                assistantMsgWrapper.querySelector('.prose').innerHTML = marked.parse(fullContent);
+                                
+                                // 提取引用（在最后一个 chunk 中）
+                                if (delta.references && Array.isArray(delta.references)) {
+                                    references = delta.references;
+                                    console.log('收到引用:', references.length, '个');
+                                }
+                                
+                                // 更新显示内容
+                                let displayContent = marked.parse(fullContent);
+                                if (references.length > 0) {
+                                    displayContent += renderReferences(references);
+                                }
+                                assistantMsgWrapper.querySelector('.prose').innerHTML = displayContent;
                                 historyDiv.scrollTop = historyDiv.scrollHeight;
                             } catch (e) {
                                 // 如果解析 JSON 失败（比如是普通文本响应），尝试直接显示
@@ -1029,7 +1043,15 @@ for chunk in response:
                                          const json = JSON.parse(data);
                                          if (json.choices && json.choices[0].message) {
                                              fullContent = json.choices[0].message.content;
-                                             assistantMsgWrapper.querySelector('.prose').innerHTML = marked.parse(fullContent);
+                                             // 提取引用
+                                             if (json.choices[0].message.references) {
+                                                 references = json.choices[0].message.references;
+                                             }
+                                             let displayContent = marked.parse(fullContent);
+                                             if (references.length > 0) {
+                                                 displayContent += renderReferences(references);
+                                             }
+                                             assistantMsgWrapper.querySelector('.prose').innerHTML = displayContent;
                                          }
                                     } catch(e2) {}
                                 }
@@ -1046,7 +1068,15 @@ for chunk in response:
                                      historyDiv.scrollTop = historyDiv.scrollHeight;
                                 } else if (json.choices && json.choices[0].message) {
                                     fullContent = json.choices[0].message.content;
-                                    assistantMsgWrapper.querySelector('.prose').innerHTML = marked.parse(fullContent);
+                                    // 提取引用
+                                    if (json.choices[0].message.references) {
+                                        references = json.choices[0].message.references;
+                                    }
+                                    let displayContent = marked.parse(fullContent);
+                                    if (references.length > 0) {
+                                        displayContent += renderReferences(references);
+                                    }
+                                    assistantMsgWrapper.querySelector('.prose').innerHTML = displayContent;
                                     historyDiv.scrollTop = historyDiv.scrollHeight;
                                 }
                             } catch (e) {}
@@ -1064,6 +1094,34 @@ for chunk in response:
                 sendBtn.classList.remove('opacity-50');
                 document.getElementById('chat-input').focus();
             }
+        }
+
+        function renderReferences(references) {
+            if (!references || references.length === 0) return '';
+            
+            let html = '<div class="mt-4 pt-3 border-t border-gray-200">';
+            html += '<div class="text-xs font-semibold text-gray-500 mb-2">📚 参考来源</div>';
+            html += '<div class="space-y-2">';
+            
+            references.forEach((ref, index) => {
+                const title = ref.title || '未知标题';
+                const url = ref.url || '#';
+                const snippet = ref.snippet || '';
+                const sitename = ref.sitename || '';
+                
+                html += `
+                    <div class="bg-gray-50 rounded p-2 text-xs">
+                        <a href="${url}" target="_blank" class="text-blue-600 hover:text-blue-800 font-medium block truncate" title="${title}">
+                            [${index + 1}] ${title}
+                        </a>
+                        ${snippet ? `<p class="text-gray-500 mt-1 line-clamp-2">${snippet}</p>` : ''}
+                        ${sitename ? `<span class="text-gray-400 text-xs">${sitename}</span>` : ''}
+                    </div>
+                `;
+            });
+            
+            html += '</div></div>';
+            return html;
         }
 
         function appendMessage(role, content, id = null) {

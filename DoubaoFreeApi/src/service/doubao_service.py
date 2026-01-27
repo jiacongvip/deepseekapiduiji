@@ -31,115 +31,71 @@ async def chat_completion(
     if not session:
         raise HTTPException(status_code=404, detail=f"会话配置不存在,请检查 session.config 文件或提供有效的 Token")
     
-    # Extract fp from cookie
-    fp = ""
-    if session.cookie:
-        for part in session.cookie.split('; '):
-            if part.startswith('s_v_web_id='):
-                fp = part.split('=')[1]
-                break
-    
     # ------ PARAMS -------
-    params = "&".join([
+    # 从 cookie 中提取 fp (s_v_web_id)
+    fp = ""
+    if session.cookie and "s_v_web_id=" in session.cookie:
+        try:
+            fp = session.cookie.split("s_v_web_id=")[1].split(";")[0]
+        except:
+            pass
+    
+    params_list = [
         "aid=497858",
         f"device_id={session.device_id}",
         "device_platform=web",
         "language=zh",
-        "pc_version=2.23.2",
+        "pc_version=3.1.2",
         "pkg_type=release_version",
         "real_aid=497858",
-        "region=CN",
         "samantha_web=1",
-        "sys_region=CN",
         f"tea_uuid={session.tea_uuid}",
         "use-olympus-account=1",
         "version_code=20800",
         f"web_id={session.web_id}"
-    ])
+    ]
     
-    # ------ URL -------
-    url = "https://www.doubao.com/chat/completion?" + params
+    # 添加 fp 参数（如果存在）
+    if fp:
+        params_list.insert(4, f"fp={fp}")
     
-    # ------ BODY -------
-    # New structure based on capture
-    local_conv_id = f"local_{int(uuid.uuid4().int % 10000000000000000)}"
+    # 添加 region 和 sys_region
+    params_list.append("region=CN")
+    params_list.append("sys_region=CN")
     
+    params = "&".join(params_list)
+    
+    # ------ URL ------- 使用旧协议端点（支持搜索引用）
+    url = "https://www.doubao.com/samantha/chat/completion?" + params
+    
+    # ------ BODY ------- 旧协议格式
     body = {
-        "client_meta": {
-            "local_conversation_id": local_conv_id,
-            "conversation_id": conversation_id if conversation_id and conversation_id != "0" else "",
-            "bot_id": "7338286299411103781", # Default Doubao bot ID
-            "last_section_id": section_id if section_id else "",
-            "last_message_index": None
+        "completion_option": {
+            "is_regen": False,
+            "with_suggest": False,
+            "need_create_conversation": conversation_id is None,
+            "launch_stage": 1,
+            "use_auto_cot": use_auto_cot,
+            "use_deep_think": use_deep_think
         },
+        "conversation_id": "0" if conversation_id is None else conversation_id,
         "messages": [
             {
-                "local_message_id": str(uuid.uuid4()),
-                "content_block": [
-                    {
-                        "block_type": 10000,
-                        "content": {
-                            "text_block": {
-                                "text": prompt,
-                                "icon_url": "",
-                                "icon_url_dark": "",
-                                "summary": ""
-                            },
-                            "pc_event_block": ""
-                        },
-                        "block_id": str(uuid.uuid4()),
-                        "parent_id": "",
-                        "meta_info": [],
-                        "append_fields": []
-                    }
-                ],
-                "message_status": 0
+                "content": json.dumps({"text": prompt}),
+                "content_type": 2001,
+                "attachments": attachments,
+                "references": []
             }
-        ],
-        "option": {
-            "send_message_scene": "",
-            "create_time_ms": int(time.time() * 1000),
-            "collect_id": "",
-            "is_audio": False,
-            "answer_with_suggest": False,
-            "tts_switch": False,
-            "need_deep_think": 1 if use_deep_think else 0,
-            "click_clear_context": False,
-            "from_suggest": False,
-            "is_regen": False,
-            "is_replace": False,
-            "disable_sse_cache": False,
-            "select_text_action": "",
-            "resend_for_regen": False,
-            "scene_type": 0,
-            "unique_key": str(uuid.uuid4()),
-            "start_seq": 0,
-            "need_create_conversation": True,
-            "conversation_init_option": {
-                "need_ack_conversation": True
-            },
-            "regen_query_id": [],
-            "edit_query_id": [],
-            "regen_instruction": "",
-            "no_replace_for_regen": False,
-            "message_from": 0,
-            "shared_app_name": "",
-            "sse_recv_event_options": {
-                "support_chunk_delta": True
-            },
-            "is_ai_playground": False
-        },
-        "ext": {
-            "conversation_init_option": "{\"need_ack_conversation\":true}",
-            "fp": fp,
-            "use_deep_think": "1" if use_deep_think else "0",
-            "commerce_credit_config_enable": "0",
-            "sub_conv_firstmet_type": "1"
-        }
+        ]
     }
     
-    # Handle attachments (simplified, might need more work if attachments are used)
-    # The capture showed complex structure, but for text chat this should be enough.
+    if section_id is not None:
+        body["section_id"] = section_id
+    
+    # 如果是登录账户，添加 local 字段
+    if not guest:
+        body["local_conversation_id"] = f"local_{int(uuid.uuid4().int % 10000000000000000)}" 
+        body["local_message_id"] = str(uuid.uuid4())
     
     # ------ HEADERS -------
     headers = {

@@ -256,9 +256,9 @@ async def api_completions(
             
             return create_openai_response(full_text, conv_id, model, references=refs)
             
-    except Exception as e:
+        except Exception as e:
             logger.error(f"聊天请求处理失败: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=str(e))
 
 
 

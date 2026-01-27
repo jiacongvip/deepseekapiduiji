@@ -58,6 +58,7 @@ async def api_completions(
         raise HTTPException(status_code=400, detail="Field 'prompt' or 'messages' (with user content) is required")
 
     try:
+        logger.info(f"收到聊天请求: prompt长度={len(prompt) if prompt else 0}, guest={completion.guest}, conversation_id={completion.conversation_id}")
         text, imgs, conv_id, msg_id, sec_id = await chat_completion(
             prompt=prompt,
             guest=completion.guest,
@@ -68,14 +69,23 @@ async def api_completions(
             use_deep_think=completion.use_deep_think,
             session_override=session_override
         )
-        return CompletionResponse(
-            text=text, 
-            img_urls=imgs, 
-            conversation_id=conv_id, 
-            messageg_id=msg_id, 
-            section_id=sec_id
-            )
+        logger.info(f"聊天完成: text长度={len(text) if text else 0}, conversation_id={conv_id}, section_id={sec_id}")
+        if not text or text.strip() == '':
+            logger.warning("警告: 返回的文本内容为空!")
+        else:
+            logger.debug(f"返回文本预览: {text[:100]}...")
+        
+        response = CompletionResponse(
+            text=text or "", 
+            img_urls=imgs or [], 
+            conversation_id=conv_id or "", 
+            messageg_id=msg_id or "", 
+            section_id=sec_id or ""
+        )
+        logger.debug(f"准备返回响应: text长度={len(response.text)}, img_urls数量={len(response.img_urls)}")
+        return response
     except Exception as e:
+        logger.error(f"聊天请求处理失败: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

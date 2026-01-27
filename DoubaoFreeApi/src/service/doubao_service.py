@@ -374,50 +374,59 @@ async def handle_sse(response: aiohttp.ClientResponse):
                     logger.debug(f"SSE_ACK: conv_id={conversation_id}, sec_id={section_id}")
                     
                 elif event_type == "STREAM_MSG_NOTIFY":
-                    # Start of message?
+                    # Start of message or message update
                     meta = data.get("meta", {})
                     if not conversation_id:
                         conversation_id = meta.get("conversation_id")
                     if not section_id:
                         section_id = meta.get("section_id")
                     message_id = meta.get("message_id")
+                    logger.debug(f"STREAM_MSG_NOTIFY: conv_id={conversation_id}, sec_id={section_id}, msg_id={message_id}")
                     
                     content = data.get("content", {})
                     blocks = content.get("content_block", [])
+                    logger.debug(f"STREAM_MSG_NOTIFY: 找到 {len(blocks)} 个 content_block")
                     for block in blocks:
                         text_block = block.get("content", {}).get("text_block", {})
                         if text := text_block.get("text"):
+                            logger.debug(f"从 STREAM_MSG_NOTIFY 提取文本: {text[:50]}...")
                             texts.append(text)
                             
                 elif event_type == "STREAM_CHUNK":
                     # Patch updates
                     patch_ops = data.get("patch_op", [])
+                    logger.debug(f"STREAM_CHUNK: 收到 {len(patch_ops)} 个 patch_op")
                     for op in patch_ops:
                         patch_type = op.get("patch_type") # 1 usually
                         patch_value = op.get("patch_value", {})
                         
-                        # Handle text updates
+                        chunk_text = ""
+                        
+                        # Handle text updates from content_block (优先使用这个)
                         if "content_block" in patch_value:
                             for block in patch_value["content_block"]:
                                 text_block = block.get("content", {}).get("text_block", {})
                                 if text := text_block.get("text"):
-                                    texts.append(text)
-                                # 修复：处理只有 text_block 且为空的情况（可能包含在其他字段里）或直接是文本
+                                    chunk_text = text  # content_block 通常是完整的当前文本
+                                    logger.debug(f"从 content_block 提取文本: {text[:50]}...")
                         
-                        # Handle tts_content as a fallback for text (Observed in logs: patch_value={"tts_content":"想"})
+                        # Handle tts_content as a fallback or supplement
+                        # tts_content 可能是增量，也可能是完整文本
                         if "tts_content" in patch_value:
                             tts_text = patch_value["tts_content"]
-                            # Doubao tts_content often contains the *entire* sentence accumulated so far, or just a chunk.
-                            # The log showed single chars: "想", "做", "数字"...
-                            # But sometimes it might be accumulated.
-                            # Given the logs showed distinct single chars, we append them.
-                            # But we need to be careful not to duplicate if content_block also fired.
+                            logger.debug(f"TTS Content found: {tts_text[:50] if tts_text else 'empty'}...")
                             
-                            # Log to see what's happening
-                            logger.debug(f"TTS Content found: {tts_text}")
-                            
-                            if tts_text:
-                                texts.append(tts_text)
+                            # 如果 content_block 没有文本，使用 tts_content
+                            # 如果两者都有，优先使用 content_block（通常更准确）
+                            if not chunk_text and tts_text:
+                                chunk_text = tts_text
+                            elif chunk_text and tts_text and len(tts_text) > len(chunk_text):
+                                # 如果 tts_content 更长，可能是累积的完整文本，使用它
+                                chunk_text = tts_text
+                        
+                        if chunk_text:
+                            texts.append(chunk_text)
+                            logger.debug(f"已添加文本片段，当前总长度: {sum(len(t) for t in texts)}")
 
                 elif event_type == "FULL_MSG_NOTIFY":
                     # Full message content in one go
@@ -476,7 +485,13 @@ async def handle_sse(response: aiohttp.ClientResponse):
                 continue
 
     text = "".join(texts)
-    logger.debug(f"SSE流结束: 获取到文本长度={len(text)}")
+    logger.info(f"SSE流结束: 获取到文本长度={len(text)}, 文本片段数量={len(texts)}, conversation_id={conversation_id}, section_id={section_id}")
+    if text:
+        logger.debug(f"文本内容预览: {text[:200]}...")
+    else:
+        logger.warning("警告: SSE流解析后文本为空!")
+        if texts:
+            logger.warning(f"文本片段列表: {texts}")
     return text, image_urls, conversation_id, message_id, section_id
 
 

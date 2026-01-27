@@ -228,6 +228,7 @@ async function sendMessage() {
         }
         
         // 发送请求
+        console.log('发送请求:', requestBody);
         const response = await fetch('/api/chat/completions', {
             method: 'POST',
             headers: {
@@ -236,14 +237,39 @@ async function sendMessage() {
             body: JSON.stringify(requestBody)
         });
         
+        console.log('收到响应状态:', response.status, response.statusText);
+        console.log('响应 Content-Type:', response.headers.get('content-type'));
+        
         if (response.ok) {
-            const data = await response.json();
+            const responseText = await response.text();
+            console.log('响应原始内容:', responseText.substring(0, 500));
+            
+            let data;
+            try {
+                data = JSON.parse(responseText);
+                console.log('解析后的数据:', data);
+                console.log('文本内容长度:', data.text ? data.text.length : 0);
+                console.log('文本内容预览:', data.text ? data.text.substring(0, 100) : 'null');
+            } catch (e) {
+                console.error('JSON解析失败:', e);
+                console.error('响应内容:', responseText);
+                throw new Error(`响应解析失败: ${e.message}`);
+            }
             
             // 移除加载提示
             removeLoadingMessage(loadingMessageId);
             
+            // 检查文本内容
+            if (!data.text || data.text.trim() === '') {
+                console.warn('警告: 收到的文本内容为空');
+                showError('AI返回的内容为空，请检查后端日志');
+                return;
+            }
+            
             // 添加AI回复到聊天区域
-            addMessageToChat(data.text, false, data.img_urls);
+            console.log('准备显示消息，长度:', data.text.length);
+            addMessageToChat(data.text, false, data.img_urls || []);
+            console.log('消息已添加到聊天区域');
             
             // 如果是登录状态下的新会话，添加到会话列表
             if (isLoggedIn && currentConversationId === null && data.conversation_id) {
@@ -266,10 +292,20 @@ async function sendMessage() {
             // 移除加载提示
             removeLoadingMessage(loadingMessageId);
             
-            const errorData = await response.json();
-            showError(`请求失败: ${errorData.detail}`);
+            let errorData;
+            try {
+                const errorText = await response.text();
+                console.error('错误响应内容:', errorText);
+                errorData = JSON.parse(errorText);
+            } catch (e) {
+                errorData = { detail: `HTTP ${response.status}: ${response.statusText}` };
+            }
+            showError(`请求失败: ${errorData.detail || errorData.message || '未知错误'}`);
         }
     } catch (error) {
+        console.error('发送消息时发生错误:', error);
+        console.error('错误堆栈:', error.stack);
+        removeLoadingMessage(loadingMessageId);
         showError(`发送消息错误: ${error.message}`);
     } finally {
         // 恢复输入和发送按钮
@@ -282,6 +318,17 @@ async function sendMessage() {
 
 // 添加消息到聊天区域
 function addMessageToChat(content, isUser, images = []) {
+    console.log('addMessageToChat 被调用:', {
+        contentLength: content ? content.length : 0,
+        isUser: isUser,
+        imagesCount: images ? images.length : 0
+    });
+    
+    if (!content || (typeof content === 'string' && content.trim() === '')) {
+        console.warn('警告: 尝试添加空内容到聊天区域');
+        return;
+    }
+    
     // 如果是第一条消息，清除欢迎信息
     if (chatContainer.querySelector('.welcome-message')) {
         chatContainer.innerHTML = '';
@@ -290,10 +337,19 @@ function addMessageToChat(content, isUser, images = []) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
     
+    // 转义HTML以防止XSS，但保留换行
+    const escapedContent = String(content)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/\n/g, '<br>');
+    
     let messageContent = `
         <div class="message-avatar">${isUser ? 'U' : 'AI'}</div>
         <div class="message-content">
-            ${content.replace(/\n/g, '<br>')}
+            ${escapedContent}
     `;
     
     // 如果有图片，添加图片
@@ -309,6 +365,7 @@ function addMessageToChat(content, isUser, images = []) {
     messageDiv.innerHTML = messageContent;
     
     chatContainer.appendChild(messageDiv);
+    console.log('消息已添加到DOM，当前消息数量:', chatContainer.querySelectorAll('.message').length);
     
     // 滚动到底部
     chatContainer.scrollTop = chatContainer.scrollHeight;

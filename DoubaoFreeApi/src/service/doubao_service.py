@@ -164,10 +164,10 @@ async def chat_completion(
                 else:
                     try:
                         # 下一次会话需要同一个session
-                        text, image_urls, conversation_id, message_id, section_id = await handle_sse(response)
+                        text, image_urls, references, conversation_id, message_id, section_id = await handle_sse(response)
                         if conversation_id:
                             session_pool.set_session(conversation_id, session)
-                        return text, image_urls, conversation_id, message_id, section_id
+                        return text, image_urls, references, conversation_id, message_id, section_id
                     except LimitedException:
                         session_pool.del_session(session)
                         raise HTTPException(status_code=500, detail=f"游客限制5次会话已用完，请重使用新Session")
@@ -323,7 +323,51 @@ async def handle_sse(response: aiohttp.ClientResponse):
     section_id = ""
     texts = []
     image_urls = []
+    references = []  # 引用来源列表
     is_end = False
+    
+    def add_reference_from_text_card(text_card: dict):
+        """从 text_card 中提取引用信息"""
+        if not isinstance(text_card, dict):
+            return
+        url = text_card.get('url', '')
+        if not url:
+            return
+
+        index = text_card.get('index')
+        if index is None:
+            index = text_card.get('original_doc_rank')
+
+        ref_data = {
+            'title': text_card.get('title', ''),
+            'url': url,
+            'snippet': text_card.get('summary', ''),
+            'index': index,
+            'sitename': text_card.get('sitename', ''),
+            'publish_time': text_card.get('publish_time_second', '')
+        }
+        # 避免重复添加（基于URL去重）
+        if not any(r.get('url') == url for r in references):
+            references.append(ref_data)
+            logger.debug(f"添加引用: {ref_data.get('title', '')[:30]}... -> {url[:50]}...")
+
+    def extract_search_results(search_result: dict):
+        """从搜索结果中提取引用"""
+        if not isinstance(search_result, dict):
+            return
+        results = search_result.get('results', [])
+        if not isinstance(results, list):
+            return
+
+        for result in results:
+            text_card = (result or {}).get('text_card', {})
+            add_reference_from_text_card(text_card)
+
+        if results:
+            summary = search_result.get('summary', '')
+            queries = search_result.get('queries', [])
+            if summary or queries:
+                logger.info(f"搜索引用: {summary}, 关键词: {queries}")
     
     async for chunk in response.content.iter_chunked(1024):
         buffer += chunk.decode('utf-8', errors='replace')
@@ -432,12 +476,12 @@ async def handle_sse(response: aiohttp.ClientResponse):
                             message = result.get("message", {})
                             if message:
                                 content_type = message.get("content_type")
-                                # 支持的 content_type: 10000, 2001, 2008
+                                
+                                # 文字消息: 10000, 2001, 2008
                                 if content_type in [10000, 2001, 2008, None]:
                                     content = message.get("content")
                                     if content:
                                         try:
-                                            # content 可能是 JSON 字符串
                                             if isinstance(content, str):
                                                 content_data = json.loads(content)
                                             else:
@@ -448,11 +492,44 @@ async def handle_sse(response: aiohttp.ClientResponse):
                                             if content_text:
                                                 texts.append(content_text)
                                                 logger.debug(f"旧协议提取文本: {content_text[:50]}... (长度: {len(content_text)})")
+                                            
+                                            # 提取搜索引用 search_references
+                                            search_refs = content_data.get('search_references', [])
+                                            if search_refs:
+                                                logger.info(f"发现搜索引用: {len(search_refs)}个")
+                                                for ref_item in search_refs:
+                                                    text_card = ref_item.get('text_card', {})
+                                                    add_reference_from_text_card(text_card)
+                                            
+                                            # 兼容：从 extra_info 提取引用
+                                            extra_info = content_data.get('extra_info', {})
+                                            if isinstance(extra_info, dict):
+                                                search_results = extra_info.get('search_query_result_block', {}).get('results', [])
+                                                for sr in search_results:
+                                                    text_card = sr.get('text_card', {})
+                                                    add_reference_from_text_card(text_card)
+                                                    
                                         except json.JSONDecodeError:
-                                            # content 可能直接是文本
                                             if isinstance(content, str) and content:
                                                 texts.append(content)
                                                 logger.debug(f"旧协议直接使用content: {content[:50]}...")
+                                
+                                # 搜索结果消息: 10025
+                                elif content_type == 10025:
+                                    try:
+                                        search_result = json.loads(message.get('content', '{}'))
+                                        extract_search_results(search_result)
+                                    except:
+                                        pass
+                                
+                                # 从 content_block 中提取搜索引用
+                                content_blocks = message.get('content_block', [])
+                                for block in content_blocks:
+                                    if block.get('block_type') == 10025:
+                                        block_content = block.get('content', {})
+                                        search_result = block_content.get('search_query_result_block', {})
+                                        extract_search_results(search_result)
+                                        
                         except json.JSONDecodeError as e:
                             logger.warning(f"旧协议解析 event_data 失败: {e}")
                         continue
@@ -497,9 +574,16 @@ async def handle_sse(response: aiohttp.ClientResponse):
                         
                         if "content_block" in patch_value:
                             for block in patch_value["content_block"]:
+                                # 提取文本
                                 text_block = block.get("content", {}).get("text_block", {})
                                 if text := text_block.get("text"):
                                     chunk_text = text
+                                
+                                # 提取搜索引用 (block_type: 10025)
+                                if block.get('block_type') == 10025:
+                                    block_content = block.get('content', {})
+                                    search_result = block_content.get('search_query_result_block', {})
+                                    extract_search_results(search_result)
                         
                         if "tts_content" in patch_value:
                             tts_text = patch_value["tts_content"]
@@ -554,13 +638,15 @@ async def handle_sse(response: aiohttp.ClientResponse):
                 continue
 
     text = "".join(texts)
-    logger.info(f"SSE流结束: 文本长度={len(text)}, 片段数={len(texts)}, conv_id={conversation_id}, sec_id={section_id}")
+    logger.info(f"SSE流结束: 文本长度={len(text)}, 片段数={len(texts)}, 引用数={len(references)}, conv_id={conversation_id}, sec_id={section_id}")
     if text:
         logger.debug(f"文本预览: {text[:200]}...")
     else:
         logger.warning("警告: 解析后文本为空!")
         logger.warning(f"收到的片段: {texts}")
-    return text, image_urls, conversation_id, message_id, section_id
+    if references:
+        logger.info(f"引用列表: {[r.get('title', '')[:20] for r in references]}")
+    return text, image_urls, references, conversation_id, message_id, section_id
 
 
 async def upload_file(file_type: int, file_name: str, file_data: bytes):

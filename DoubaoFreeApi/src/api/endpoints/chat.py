@@ -14,8 +14,17 @@ import time
 router = APIRouter()
 
 
-def create_openai_response(text: str, conv_id: str = "", model: str = "doubao-pro-4k"):
+def create_openai_response(text: str, conv_id: str = "", model: str = "doubao-pro-4k", references: list = None):
     """创建 OpenAI 兼容的非流式响应"""
+    message = {
+        "role": "assistant",
+        "content": text
+    }
+    
+    # 如果有引用，添加到 message 中
+    if references:
+        message["references"] = references
+    
     return {
         "id": f"chatcmpl-{conv_id or uuid.uuid4()}",
         "object": "chat.completion",
@@ -24,10 +33,7 @@ def create_openai_response(text: str, conv_id: str = "", model: str = "doubao-pr
         "choices": [
             {
                 "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": text
-                },
+                "message": message,
                 "finish_reason": "stop"
             }
         ],
@@ -39,9 +45,13 @@ def create_openai_response(text: str, conv_id: str = "", model: str = "doubao-pr
     }
 
 
-def create_openai_stream_chunk(content: str, conv_id: str = "", model: str = "doubao-pro-4k", is_first: bool = False, is_done: bool = False):
+def create_openai_stream_chunk(content: str, conv_id: str = "", model: str = "doubao-pro-4k", is_first: bool = False, is_done: bool = False, references: list = None):
     """创建 OpenAI 兼容的流式响应 chunk"""
     if is_done:
+        delta = {}
+        # 如果有引用，在结束时发送
+        if references:
+            delta["references"] = references
         return {
             "id": f"chatcmpl-{conv_id or uuid.uuid4()}",
             "object": "chat.completion.chunk",
@@ -50,7 +60,7 @@ def create_openai_stream_chunk(content: str, conv_id: str = "", model: str = "do
             "choices": [
                 {
                     "index": 0,
-                    "delta": {},
+                    "delta": delta,
                     "finish_reason": "stop"
                 }
             ]
@@ -136,7 +146,7 @@ async def api_completions(
         # 流式响应
         async def generate_stream():
             try:
-                text, imgs, conv_id, msg_id, sec_id = await chat_completion(
+                text, imgs, refs, conv_id, msg_id, sec_id = await chat_completion(
                     prompt=prompt,
                     guest=completion.guest,
                     conversation_id=completion.conversation_id,
@@ -147,7 +157,7 @@ async def api_completions(
                     session_override=session_override
                 )
                 
-                logger.info(f"聊天完成: text长度={len(text) if text else 0}")
+                logger.info(f"聊天完成: text长度={len(text) if text else 0}, 引用数={len(refs) if refs else 0}")
                 
                 if text:
                     # 发送第一个 chunk（包含 role）
@@ -161,8 +171,8 @@ async def api_completions(
                         chunk = create_openai_stream_chunk(chunk_text, conv_id, model)
                         yield f"data: {json.dumps(chunk)}\n\n"
                     
-                    # 发送结束 chunk
-                    done_chunk = create_openai_stream_chunk("", conv_id, model, is_done=True)
+                    # 发送结束 chunk（包含引用）
+                    done_chunk = create_openai_stream_chunk("", conv_id, model, is_done=True, references=refs)
                     yield f"data: {json.dumps(done_chunk)}\n\n"
                 else:
                     # 空响应
@@ -197,7 +207,7 @@ async def api_completions(
     else:
         # 非流式响应
         try:
-            text, imgs, conv_id, msg_id, sec_id = await chat_completion(
+            text, imgs, refs, conv_id, msg_id, sec_id = await chat_completion(
                 prompt=prompt,
                 guest=completion.guest,
                 conversation_id=completion.conversation_id,
@@ -208,12 +218,12 @@ async def api_completions(
                 session_override=session_override
             )
             
-            logger.info(f"聊天完成: text长度={len(text) if text else 0}, conversation_id={conv_id}")
+            logger.info(f"聊天完成: text长度={len(text) if text else 0}, 引用数={len(refs) if refs else 0}, conversation_id={conv_id}")
             
             if not text:
                 text = "抱歉，未能获取到回复内容。"
             
-            return create_openai_response(text, conv_id, model)
+            return create_openai_response(text, conv_id, model, references=refs)
             
         except Exception as e:
             logger.error(f"聊天请求处理失败: {str(e)}", exc_info=True)

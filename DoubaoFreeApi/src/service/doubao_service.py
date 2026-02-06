@@ -280,50 +280,187 @@ async def handle_sse(response: aiohttp.ClientResponse):
     texts = []
     image_urls = []
     references = []  # 引用来源列表
+    reference_urls = set()
     is_end = False
     
+    def _normalize_url(url: str) -> str:
+        if not isinstance(url, str):
+            return ""
+        url = url.strip()
+        if url.startswith("//"):
+            url = "https:" + url
+        return url
+
+    def _is_probable_source_url(url: str) -> bool:
+        if not url:
+            return False
+        if not (url.startswith("http://") or url.startswith("https://")):
+            return False
+        lowered = url.lower()
+        if any(
+            lowered.endswith(ext)
+            for ext in (
+                ".png",
+                ".jpg",
+                ".jpeg",
+                ".gif",
+                ".webp",
+                ".svg",
+                ".ico",
+                ".css",
+                ".js",
+                ".mp3",
+                ".mp4",
+                ".m4a",
+                ".wav",
+            )
+        ):
+            return False
+        if any(
+            host in lowered
+            for host in (
+                "byteimg.com",
+                "bytednsdoc.com",
+                "zijieapi.com",
+                "bytedanceapi.com",
+                "snssdk.com",
+            )
+        ):
+            return False
+        return True
+
     def add_reference_from_text_card(text_card: dict):
-        """从 text_card 中提取引用信息"""
+        """从 text_card/引用对象中提取引用信息（兼容豆包改版字段）"""
         if not isinstance(text_card, dict):
             return
-        url = text_card.get('url', '')
-        if not url:
+
+        url = _normalize_url(
+            text_card.get("url")
+            or text_card.get("link")
+            or text_card.get("href")
+            or text_card.get("jump_url")
+            or ""
+        )
+        if not _is_probable_source_url(url):
+            return
+        if url in reference_urls:
             return
 
-        index = text_card.get('index')
+        index = (
+            text_card.get("index")
+            if text_card.get("index") is not None
+            else text_card.get("original_doc_rank")
+        )
         if index is None:
-            index = text_card.get('original_doc_rank')
+            index = text_card.get("rank")
 
         ref_data = {
-            'title': text_card.get('title', ''),
-            'url': url,
-            'snippet': text_card.get('summary', ''),
-            'index': index,
-            'sitename': text_card.get('sitename', ''),
-            'publish_time': text_card.get('publish_time_second', '')
+            "title": text_card.get("title")
+            or text_card.get("name")
+            or text_card.get("site_title")
+            or "",
+            "url": url,
+            "snippet": text_card.get("snippet")
+            or text_card.get("summary")
+            or text_card.get("desc")
+            or text_card.get("description")
+            or "",
+            "index": index,
+            "sitename": text_card.get("sitename")
+            or text_card.get("site_name")
+            or text_card.get("source")
+            or "",
+            "publish_time": text_card.get("publish_time")
+            or text_card.get("publish_time_second")
+            or text_card.get("publish_time_ms")
+            or "",
         }
-        # 避免重复添加（基于URL去重）
-        if not any(r.get('url') == url for r in references):
-            references.append(ref_data)
-            logger.debug(f"添加引用: {ref_data.get('title', '')[:30]}... -> {url[:50]}...")
+
+        reference_urls.add(url)
+        references.append(ref_data)
+        logger.debug(f"添加引用: {ref_data.get('title', '')[:30]}... -> {url[:50]}...")
 
     def extract_search_results(search_result: dict):
         """从搜索结果中提取引用"""
         if not isinstance(search_result, dict):
             return
-        results = search_result.get('results', [])
-        if not isinstance(results, list):
-            return
 
-        for result in results:
-            text_card = (result or {}).get('text_card', {})
-            add_reference_from_text_card(text_card)
+        candidates = []
+        for key in ("results", "items", "docs", "sources", "cards"):
+            val = search_result.get(key)
+            if isinstance(val, list) and val:
+                candidates.extend(val)
 
-        if results:
-            summary = search_result.get('summary', '')
-            queries = search_result.get('queries', [])
+        for result in candidates:
+            if isinstance(result, dict):
+                for nested_key in ("text_card", "card", "doc", "source", "reference"):
+                    nested_val = result.get(nested_key)
+                    if isinstance(nested_val, dict):
+                        add_reference_from_text_card(nested_val)
+                add_reference_from_text_card(result)
+
+        if candidates:
+            summary = search_result.get("summary", "")
+            queries = search_result.get("queries", [])
             if summary or queries:
                 logger.info(f"搜索引用: {summary}, 关键词: {queries}")
+
+    def _maybe_extract_from_json_string(value: str, depth: int):
+        if not isinstance(value, str):
+            return
+        if depth > 12:
+            return
+        s = value.strip()
+        if len(s) < 2 or len(s) > 200000:
+            return
+        if ("url" not in s and "text_card" not in s and "reference" not in s and "http" not in s):
+            return
+        if not ((s.startswith("{") and s.endswith("}")) or (s.startswith("[") and s.endswith("]"))):
+            return
+        try:
+            obj = json.loads(s)
+        except Exception:
+            return
+        _extract_references_deep(obj, depth + 1)
+
+    def _extract_references_deep(obj, depth: int = 0):
+        """兜底：深度遍历提取引用（适配豆包字段/结构改动）"""
+        if depth > 12:
+            return
+        if isinstance(obj, dict):
+            add_reference_from_text_card(obj)
+
+            for key in ("text_card", "card", "doc", "source", "reference", "ref"):
+                nested = obj.get(key)
+                if isinstance(nested, dict):
+                    add_reference_from_text_card(nested)
+
+            for list_key in (
+                "search_references",
+                "references",
+                "reference_list",
+                "citation_list",
+                "citations",
+                "sources",
+                "source_list",
+                "results",
+                "items",
+                "docs",
+                "cards",
+            ):
+                nested_list = obj.get(list_key)
+                if isinstance(nested_list, list):
+                    for item in nested_list:
+                        _extract_references_deep(item, depth + 1)
+
+            for v in obj.values():
+                if isinstance(v, (dict, list)):
+                    _extract_references_deep(v, depth + 1)
+                elif isinstance(v, str):
+                    _maybe_extract_from_json_string(v, depth + 1)
+        elif isinstance(obj, list):
+            for item in obj:
+                _extract_references_deep(item, depth + 1)
     
     async for chunk in response.content.iter_chunked(1024):
         buffer += chunk.decode('utf-8', errors='replace')
@@ -372,6 +509,9 @@ async def handle_sse(response: aiohttp.ClientResponse):
             
             try:
                 data = json.loads(data_str)
+                # 新协议/改版时引用结构变化较多：只要 payload 中出现 url/refs 相关字段就做一次深度提取
+                if any(k in data_str for k in ("\"url\"", "text_card", "reference", "references", "search_references")):
+                    _extract_references_deep(data)
                 
                 # ========== 旧协议格式 (event_type 为数字) ==========
                 # 格式: data: {"event_type": 2001, "event_data": "{...}"}
@@ -418,6 +558,8 @@ async def handle_sse(response: aiohttp.ClientResponse):
                     if raw_event_type == 2001:
                         try:
                             result = json.loads(event_data_str) if event_data_str else {}
+                            if any(k in event_data_str for k in ("\"url\"", "text_card", "reference", "references", "search_references")):
+                                _extract_references_deep(result)
                             
                             # 检查是否结束
                             if result.get("is_finish"):
@@ -485,6 +627,8 @@ async def handle_sse(response: aiohttp.ClientResponse):
                                         block_content = block.get('content', {})
                                         search_result = block_content.get('search_query_result_block', {})
                                         extract_search_results(search_result)
+                                    else:
+                                        _extract_references_deep(block)
                                         
                         except json.JSONDecodeError as e:
                             logger.warning(f"旧协议解析 event_data 失败: {e}")
@@ -521,6 +665,16 @@ async def handle_sse(response: aiohttp.ClientResponse):
                         if text := text_block.get("text"):
                             texts.append(text)
                             logger.debug(f"新协议从 STREAM_MSG_NOTIFY 提取: {text[:50]}...")
+                        if block.get("block_type") == 10025:
+                            block_content = block.get("content", {})
+                            search_result = (
+                                block_content.get("search_query_result_block")
+                                or block_content.get("search_result_block")
+                                or {}
+                            )
+                            extract_search_results(search_result)
+                        else:
+                            _extract_references_deep(block)
                             
                 elif event_type == "STREAM_CHUNK":
                     patch_ops = data.get("patch_op", [])
@@ -538,8 +692,16 @@ async def handle_sse(response: aiohttp.ClientResponse):
                                 # 提取搜索引用 (block_type: 10025)
                                 if block.get('block_type') == 10025:
                                     block_content = block.get('content', {})
-                                    search_result = block_content.get('search_query_result_block', {})
+                                    search_result = (
+                                        block_content.get("search_query_result_block")
+                                        or block_content.get("search_result_block")
+                                        or {}
+                                    )
                                     extract_search_results(search_result)
+                                else:
+                                    _extract_references_deep(block)
+                        
+                        _extract_references_deep(patch_value)
                         
                         if "tts_content" in patch_value:
                             tts_text = patch_value["tts_content"]
@@ -559,6 +721,16 @@ async def handle_sse(response: aiohttp.ClientResponse):
                             text_block = block.get("content", {}).get("text_block", {})
                             if text := text_block.get("text"):
                                 texts.append(text)
+                            if block.get("block_type") == 10025:
+                                block_content = block.get("content", {})
+                                search_result = (
+                                    block_content.get("search_query_result_block")
+                                    or block_content.get("search_result_block")
+                                    or {}
+                                )
+                                extract_search_results(search_result)
+                            else:
+                                _extract_references_deep(block)
                     else:
                         content_str = message.get("content", "")
                         if content_str:
@@ -569,10 +741,12 @@ async def handle_sse(response: aiohttp.ClientResponse):
                                         text_block = block.get("content", {}).get("text_block", {})
                                         if text := text_block.get("text"):
                                             texts.append(text)
+                                        _extract_references_deep(block)
                                 else:
                                     texts.append(str(content_str))
                             except:
                                 texts.append(str(content_str))
+                    _extract_references_deep(message)
 
                 elif event_type in ["message", "implicit_message"]:
                     if isinstance(data, dict):

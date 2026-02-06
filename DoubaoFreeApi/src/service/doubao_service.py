@@ -281,6 +281,10 @@ async def handle_sse(response: aiohttp.ClientResponse):
     image_urls = []
     references = []  # 引用来源列表
     reference_urls = set()
+    best_tts_content = ""
+    parsed_any_json = False
+    json_decode_errors = 0
+    last_json_decode_error_preview = ""
     is_end = False
     
     def _normalize_url(url: str) -> str:
@@ -509,6 +513,7 @@ async def handle_sse(response: aiohttp.ClientResponse):
             
             try:
                 data = json.loads(data_str)
+                parsed_any_json = True
                 # 新协议/改版时引用结构变化较多：只要 payload 中出现 url/refs 相关字段就做一次深度提取
                 if any(k in data_str for k in ("\"url\"", "text_card", "reference", "references", "search_references")):
                     _extract_references_deep(data)
@@ -560,6 +565,18 @@ async def handle_sse(response: aiohttp.ClientResponse):
                             result = json.loads(event_data_str) if event_data_str else {}
                             if any(k in event_data_str for k in ("\"url\"", "text_card", "reference", "references", "search_references")):
                                 _extract_references_deep(result)
+
+                            tts_content = (
+                                result.get("tts_content")
+                                or (result.get("message", {}) or {}).get("tts_content")
+                                or ""
+                            )
+                            if (
+                                isinstance(tts_content, str)
+                                and tts_content
+                                and len(tts_content) > len(best_tts_content)
+                            ):
+                                best_tts_content = tts_content
                             
                             # 检查是否结束
                             if result.get("is_finish"):
@@ -572,54 +589,59 @@ async def handle_sse(response: aiohttp.ClientResponse):
                             
                             # 提取消息内容
                             message = result.get("message", {})
-                            if message:
+                            if isinstance(message, dict) and message:
                                 content_type = message.get("content_type")
-                                
-                                # 文字消息: 10000, 2001, 2008
-                                if content_type in [10000, 2001, 2008, None]:
-                                    content = message.get("content")
-                                    if content:
-                                        try:
-                                            if isinstance(content, str):
-                                                content_data = json.loads(content)
-                                            else:
-                                                content_data = content
-                                            
-                                            # 提取文本
-                                            content_text = content_data.get("text", "")
-                                            if content_text:
-                                                texts.append(content_text)
-                                                logger.debug(f"旧协议提取文本: {content_text[:50]}... (长度: {len(content_text)})")
-                                            
-                                            # 提取搜索引用 search_references
-                                            search_refs = content_data.get('search_references', [])
-                                            if search_refs:
-                                                logger.info(f"发现搜索引用: {len(search_refs)}个")
-                                                for ref_item in search_refs:
-                                                    text_card = ref_item.get('text_card', {})
-                                                    add_reference_from_text_card(text_card)
-                                            
-                                            # 兼容：从 extra_info 提取引用
-                                            extra_info = content_data.get('extra_info', {})
-                                            if isinstance(extra_info, dict):
-                                                search_results = extra_info.get('search_query_result_block', {}).get('results', [])
-                                                for sr in search_results:
-                                                    text_card = sr.get('text_card', {})
-                                                    add_reference_from_text_card(text_card)
-                                                    
-                                        except json.JSONDecodeError:
-                                            if isinstance(content, str) and content:
-                                                texts.append(content)
-                                                logger.debug(f"旧协议直接使用content: {content[:50]}...")
-                                
-                                # 搜索结果消息: 10025
-                                elif content_type == 10025:
+                                content = message.get("content")
+                                content_data = None
+
+                                if content:
                                     try:
-                                        search_result = json.loads(message.get('content', '{}'))
+                                        if isinstance(content, str):
+                                            content_data = json.loads(content)
+                                        else:
+                                            content_data = content
+                                    except json.JSONDecodeError:
+                                        if (
+                                            isinstance(content, str)
+                                            and content.strip()
+                                            and not content.strip().startswith("{")
+                                            and not content.strip().startswith("[")
+                                        ):
+                                            texts.append(content)
+                                            logger.debug(f"旧协议直接使用content: {content[:50]}...")
+
+                                if isinstance(content_data, dict):
+                                    # 提取文本
+                                    content_text = content_data.get("text", "")
+                                    if isinstance(content_text, str) and content_text:
+                                        texts.append(content_text)
+                                        logger.debug(
+                                            f"旧协议提取文本: {content_text[:50]}... (长度: {len(content_text)})"
+                                        )
+
+                                    # 提取搜索引用 search_references
+                                    search_refs = content_data.get("search_references") or []
+                                    if isinstance(search_refs, list) and search_refs:
+                                        logger.info(f"发现搜索引用: {len(search_refs)}个")
+                                        for ref_item in search_refs:
+                                            if isinstance(ref_item, dict):
+                                                text_card = ref_item.get("text_card", {})
+                                                add_reference_from_text_card(text_card)
+
+                                    # 兼容：从 extra_info 提取引用
+                                    extra_info = content_data.get("extra_info", {})
+                                    if isinstance(extra_info, dict):
+                                        search_result = (
+                                            extra_info.get("search_query_result_block")
+                                            or extra_info.get("search_result_block")
+                                            or {}
+                                        )
                                         extract_search_results(search_result)
-                                    except:
-                                        pass
-                                
+
+                                    # 搜索结果消息: 10025（内容本身就是 search_result）
+                                    if content_type == 10025:
+                                        extract_search_results(content_data)
+
                                 # 从 content_block 中提取搜索引用
                                 content_blocks = message.get('content_block', [])
                                 for block in content_blocks:
@@ -705,6 +727,12 @@ async def handle_sse(response: aiohttp.ClientResponse):
                         
                         if "tts_content" in patch_value:
                             tts_text = patch_value["tts_content"]
+                            if (
+                                isinstance(tts_text, str)
+                                and tts_text
+                                and len(tts_text) > len(best_tts_content)
+                            ):
+                                best_tts_content = tts_text
                             if not chunk_text and tts_text:
                                 chunk_text = tts_text
                             elif chunk_text and tts_text and len(tts_text) > len(chunk_text):
@@ -761,6 +789,8 @@ async def handle_sse(response: aiohttp.ClientResponse):
                     logger.debug("新协议 SSE_REPLY_END: 流结束")
                     
             except json.JSONDecodeError as e:
+                json_decode_errors += 1
+                last_json_decode_error_preview = data_str[:400] if data_str else ""
                 logger.warning(f"JSON解析失败: {e}, data: {data_str[:100] if data_str else 'empty'}")
                 continue
             except Exception as e:
@@ -768,6 +798,18 @@ async def handle_sse(response: aiohttp.ClientResponse):
                 continue
 
     text = "".join(texts)
+    if best_tts_content and len(best_tts_content) > len(text):
+        text = best_tts_content
+    if not text and not parsed_any_json and json_decode_errors:
+        preview = last_json_decode_error_preview or buffer
+        lowered = preview.lower() if isinstance(preview, str) else ""
+        if "<html" in lowered or "captcha" in lowered or "verify" in lowered:
+            raise Exception(
+                "豆包返回了验证码/风控页面，导致无法解析回复；请更新 Cookie 或先在浏览器通过验证后再试。"
+            )
+        raise Exception(
+            f"豆包响应无法解析为 SSE JSON（可能协议变更或返回非 JSON 内容），预览: {(preview[:200] if isinstance(preview, str) else '')}"
+        )
     logger.info(f"SSE流结束: 文本长度={len(text)}, 片段数={len(texts)}, 引用数={len(references)}, conv_id={conversation_id}, sec_id={section_id}")
     if text:
         logger.debug(f"文本预览: {text[:200]}...")

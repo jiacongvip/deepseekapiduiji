@@ -600,7 +600,9 @@ export function tokenSplit(authorization: string) {
  */
 export async function getTokenLiveStatus(refreshToken: string) {
   try {
-    const result = await request(
+    // 只要该接口能成功返回（request 内部已校验 ret 并在失败时抛异常），即可认为 token 可用。
+    // 之前依赖 result.user_id 可能因接口字段变更导致误判为不可用（实际生成仍然可用）。
+    await request(
       "POST",
       "/passport/account/info/v2",
       refreshToken,
@@ -610,9 +612,14 @@ export async function getTokenLiveStatus(refreshToken: string) {
         },
       }
     );
-    // request 内部已调用 checkResult，直接使用返回值
-    return !!result?.user_id;
+    return true;
   } catch (err) {
-    return false;
+    // 兜底：部分地区/时期该接口可能不稳定，改用积分接口做一次轻量验证
+    try {
+      await getCredit(refreshToken);
+      return true;
+    } catch (err2) {
+      return false;
+    }
   }
 }

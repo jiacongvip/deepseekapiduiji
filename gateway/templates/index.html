@@ -147,6 +147,21 @@ for chunk in response:
     "ratio": "16:9",
     "duration": 5
   }'</code></pre>
+
+                <h4 class="text-base font-bold mt-6 mb-2">即梦首尾帧视频示例 (cURL)</h4>
+                <pre><code class="language-bash">curl http://localhost:8888/v1/videos/generations \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-any-string" \
+  -d '{
+    "model": "jimeng-video-4.0-pro",
+    "prompt": "镜头从室内推到窗外的城市夜景，灯光反射，电影感",
+    "ratio": "16:9",
+    "duration": 15,
+    "file_paths": [
+      "https://example.com/first.jpg",
+      "https://example.com/last.jpg"
+    ]
+  }'</code></pre>
             </div>
             <div class="p-4 border-t bg-gray-50 rounded-b-lg flex justify-end">
                 <button onclick="closeApiDocs()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded">关闭</button>
@@ -253,7 +268,7 @@ for chunk in response:
             </div>
 
             <div id="video-result" class="flex-1 overflow-y-auto p-6 space-y-4">
-                <div class="text-center text-gray-400 mt-10">在这里测试即梦视频接口（文生视频）</div>
+                <div class="text-center text-gray-400 mt-10">在这里测试即梦视频接口（文生/图生/首尾帧）</div>
             </div>
 
             <div class="p-4 border-t bg-gray-50 rounded-b-lg space-y-2">
@@ -282,6 +297,14 @@ for chunk in response:
                         <option value="url">response_format url</option>
                         <option value="b64_json">response_format b64_json</option>
                     </select>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <input type="text" id="video-first-frame" class="border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="首帧图片URL（可选）">
+                    <input type="text" id="video-end-frame" class="border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="尾帧图片URL（可选）">
+                </div>
+                <div class="text-xs text-gray-500">
+                    说明：最多 2 张图片。填 1 张 = 图生视频（首帧），填 2 张 = 首尾帧视频。仅填尾帧会被拒绝（请先填首帧）。
                 </div>
 
                 <textarea id="video-prompt" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="输入提示词..."></textarea>
@@ -1267,6 +1290,8 @@ for chunk in response:
 	            document.getElementById('video-resolution').value = '720p';
 	            document.getElementById('video-duration').value = '5';
 	            document.getElementById('video-response-format').value = 'url';
+	            document.getElementById('video-first-frame').value = '';
+	            document.getElementById('video-end-frame').value = '';
 	            document.getElementById('video-prompt').value = '';
 	            document.getElementById('video-result').innerHTML = '<div class="text-center text-gray-400 mt-10">输入提示词并点击“生成”</div>';
 	            document.getElementById('video-modal').classList.remove('hidden');
@@ -1285,6 +1310,12 @@ for chunk in response:
 	            const ratio = document.getElementById('video-ratio').value;
 	            const resolution = document.getElementById('video-resolution').value;
 	            const duration = parseInt(document.getElementById('video-duration').value, 10);
+	            const firstFrame = document.getElementById('video-first-frame').value.trim();
+	            const endFrame = document.getElementById('video-end-frame').value.trim();
+	            if (endFrame && !firstFrame) {
+	                alert('请先填写首帧图片URL，再填写尾帧图片URL。');
+	                return;
+	            }
 	            const responseFormat = document.getElementById('video-response-format').value;
 	
 	            const btn = document.getElementById('video-send-btn');
@@ -1303,6 +1334,9 @@ for chunk in response:
 	                    duration,
 	                    response_format: responseFormat
 	                };
+	                if (firstFrame) {
+	                    payload.file_paths = endFrame ? [firstFrame, endFrame] : [firstFrame];
+	                }
 	
 	                const res = await fetch('/v1/videos/generations', {
 	                    method: 'POST',

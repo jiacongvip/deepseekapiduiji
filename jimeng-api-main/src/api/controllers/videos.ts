@@ -123,6 +123,7 @@ export async function generateVideo(
   const model = getModel(_model, regionInfo);
   const isVeo3 = model.includes("veo3");
   const isSora2 = model.includes("sora2");
+  const is40 = model.includes("seedance_40");
   const is35Pro = model.includes("3.5_pro");
   // 只有 video-3.0 和 video-3.0-fast 支持 resolution 参数（3.0-pro 和 3.5-pro 不支持）
   const supportsResolution = (model.includes("vgfm_3.0") || model.includes("vgfm_3.0_fast")) && !model.includes("_pro");
@@ -152,6 +153,18 @@ export async function generateVideo(
     if (duration === 12) {
       durationMs = 12000;
       actualDuration = 12;
+    } else if (duration === 10) {
+      durationMs = 10000;
+      actualDuration = 10;
+    } else {
+      durationMs = 5000;
+      actualDuration = 5;
+    }
+  } else if (is40) {
+    // Seedance 2.0 (jimeng-video-4.0 / 4.0-pro): 支持 5 / 10 / 15 秒
+    if (duration === 15) {
+      durationMs = 15000;
+      actualDuration = 15;
     } else if (duration === 10) {
       durationMs = 10000;
       actualDuration = 10;

@@ -1,12 +1,15 @@
 import json
 import os
 import random
+import asyncio
+import time
 import httpx
 from fastapi import FastAPI, Request, HTTPException, Body
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, StreamingResponse, Response
 from pydantic import BaseModel
 from typing import Dict, List, Optional
+from datetime import datetime, timezone
 import logging
 
 # 配置日志
@@ -71,6 +74,251 @@ def save_config(config):
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f, indent=4)
 
+def _now_iso_utc():
+    return datetime.now(timezone.utc).isoformat()
+
+def _select_service_for_model(config: Dict, model: str):
+    target_service = None
+    target_key = None
+
+    # First pass: Exact match or Prefix match (explicitly configured models)
+    for key, service in (config or {}).items():
+        if model in service.get("models", []):
+            target_service = service
+            target_key = key
+            break
+        for svc_model in service.get("models", []):
+            if isinstance(svc_model, str) and model.startswith(svc_model):
+                target_service = service
+                target_key = key
+                break
+        if target_service:
+            break
+
+    # Second pass: Fuzzy service name match (Only if no explicit match found)
+    if not target_service:
+        for key, service in (config or {}).items():
+            if isinstance(key, str) and key in model.lower():
+                target_service = service
+                target_key = key
+                break
+
+    # Special fallback: DeepSeek-R1 -> Baidu (legacy)
+    if not target_service and model == "DeepSeek-R1" and "baidu" in (config or {}):
+        target_service = config["baidu"]
+        target_key = "baidu"
+
+    # Last fallback: Guess based on prefix of service key
+    if not target_service:
+        for key in (config or {}):
+            if isinstance(key, str) and model.startswith(key):
+                target_service = config[key]
+                target_key = key
+                break
+
+    return target_key, target_service
+
+async def _probe_upstream(
+    client: httpx.AsyncClient,
+    service_key: str,
+    service: Dict,
+    *,
+    timeout: float = 10.0,
+    token_strategy: str = "first",
+    user_agent: str = "Gateway-Monitor/1.0",
+):
+    """
+    Minimal upstream probe (auth + basic endpoint).
+    Returns a dict compatible with /api/test response, plus latency_ms/model/checked_at.
+    """
+    started = time.monotonic()
+    url = (service or {}).get("url")
+    if not url:
+        return {
+            "status": "error",
+            "code": 0,
+            "url": url,
+            "message": "No upstream url configured",
+            "latency_ms": int((time.monotonic() - started) * 1000),
+            "checked_at": _now_iso_utc(),
+        }
+
+    token_config = (service or {}).get("token")
+    selected_account = None
+    if isinstance(token_config, list) and len(token_config) > 0:
+        selected_account = token_config[0] if token_strategy == "first" else random.choice(token_config)
+    elif isinstance(token_config, str) and token_config.strip():
+        selected_account = token_config
+
+    # Jimeng uses token management endpoints rather than chat completions
+    if service_key == "jimeng":
+        final_token = None
+        if selected_account:
+            if isinstance(selected_account, dict):
+                final_token = selected_account.get("token") or selected_account.get("hy_token")
+            else:
+                final_token = selected_account
+
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": user_agent,
+        }
+
+        if not final_token:
+            latency_ms = int((time.monotonic() - started) * 1000)
+            return {
+                "status": "error",
+                "code": 0,
+                "url": url,
+                "probe": "/token/check",
+                "message": "No token configured",
+                "latency_ms": latency_ms,
+                "checked_at": _now_iso_utc(),
+            }
+
+        try:
+            resp = await client.post(
+                f"{url}/token/check",
+                json={"token": final_token},
+                headers=headers,
+                timeout=timeout,
+            )
+            latency_ms = int((time.monotonic() - started) * 1000)
+
+            if resp.status_code != 200:
+                err_text = ""
+                try:
+                    err_text = resp.text or ""
+                except Exception:
+                    err_text = "Unknown error"
+                if len(err_text) > 200:
+                    err_text = err_text[:200] + "..."
+                return {
+                    "status": "error",
+                    "code": resp.status_code,
+                    "url": url,
+                    "probe": "/token/check",
+                    "message": f"HTTP {resp.status_code}: {err_text}" if err_text else f"HTTP {resp.status_code}",
+                    "latency_ms": latency_ms,
+                    "checked_at": _now_iso_utc(),
+                }
+
+            live = None
+            try:
+                live = (resp.json() or {}).get("live")
+            except Exception:
+                live = None
+
+            if live is True:
+                return {
+                    "status": "success",
+                    "code": resp.status_code,
+                    "url": url,
+                    "probe": "/token/check",
+                    "message": "Token live",
+                    "latency_ms": latency_ms,
+                    "checked_at": _now_iso_utc(),
+                }
+
+            return {
+                "status": "error",
+                "code": resp.status_code,
+                "url": url,
+                "probe": "/token/check",
+                "message": "Token not live" if live is False else f"Unexpected response: {resp.text[:200]}",
+                "latency_ms": latency_ms,
+                "checked_at": _now_iso_utc(),
+            }
+
+        except Exception as e:
+            latency_ms = int((time.monotonic() - started) * 1000)
+            return {
+                "status": "error",
+                "code": 0,
+                "url": url,
+                "probe": "/token/check",
+                "message": f"Connection Error: {str(e)}",
+                "latency_ms": latency_ms,
+                "checked_at": _now_iso_utc(),
+            }
+
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": user_agent,
+    }
+    body = {}
+
+    final_token = None
+    if selected_account:
+        if isinstance(selected_account, dict):
+            final_token = selected_account.get("hy_token") or selected_account.get("token")
+            for k, v in selected_account.items():
+                if k not in ["token", "hy_token"]:
+                    body[k] = v
+        else:
+            final_token = selected_account
+
+    if final_token:
+        if service_key == "baidu" and (final_token.strip().startswith("{") or "BDUSS" in final_token):
+            headers["Authorization"] = final_token
+        else:
+            headers["Authorization"] = f"Bearer {final_token}"
+    
+    target_url = f"{url}/v1/chat/completions"
+
+    model = "gpt-3.5-turbo"
+    if isinstance(service.get("models"), list) and service["models"]:
+        model = service["models"][0]
+
+    body["model"] = model
+    body["messages"] = [{"role": "user", "content": "Hi"}]
+    body["stream"] = False
+    body["max_tokens"] = 1
+
+    try:
+        resp = await client.post(target_url, json=body, headers=headers, timeout=timeout)
+        latency_ms = int((time.monotonic() - started) * 1000)
+
+        if resp.status_code == 200:
+            return {
+                "status": "success",
+                "code": resp.status_code,
+                "url": url,
+                "model": model,
+                "message": "Auth Valid! (Chat Check Passed)",
+                "latency_ms": latency_ms,
+                "checked_at": _now_iso_utc(),
+            }
+
+        err_text = ""
+        try:
+            err_text = resp.text or ""
+        except Exception:
+            err_text = "Unknown error"
+        if len(err_text) > 200:
+            err_text = err_text[:200] + "..."
+
+        return {
+            "status": "error",
+            "code": resp.status_code,
+            "url": url,
+            "model": model,
+            "message": f"HTTP {resp.status_code}: {err_text}" if err_text else f"HTTP {resp.status_code}",
+            "latency_ms": latency_ms,
+            "checked_at": _now_iso_utc(),
+        }
+    except Exception as e:
+        latency_ms = int((time.monotonic() - started) * 1000)
+        return {
+            "status": "error",
+            "code": 0,
+            "url": url,
+            "model": model,
+            "message": f"Connection Error: {str(e)}",
+            "latency_ms": latency_ms,
+            "checked_at": _now_iso_utc(),
+        }
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     config = load_config()
@@ -120,91 +368,47 @@ async def test_service_connection(service_key: str):
         raise HTTPException(status_code=404, detail="Service not found")
         
     service = config[service_key]
-    url = service.get("url")
-    token_config = service.get("token")
-    
-    # Pick a token to test
-    selected_account = None
-    if isinstance(token_config, list) and len(token_config) > 0:
-        selected_account = token_config[0] # Test the first one
-    elif isinstance(token_config, str) and token_config.strip():
-        selected_account = token_config
-        
-    final_token = None
-    headers = {
-        "Content-Type": "application/json",
-        "User-Agent": "Gateway-Test/1.0"
-    }
-    
-    body = {}
-    
-    if selected_account:
-        if isinstance(selected_account, dict):
-             # Yuanbao style
-             final_token = selected_account.get("hy_token") or selected_account.get("token")
-             for k, v in selected_account.items():
-                if k not in ["token", "hy_token"]:
-                    body[k] = v
-        else:
-             final_token = selected_account
+    async with httpx.AsyncClient() as client:
+        return await _probe_upstream(
+            client,
+            service_key,
+            service,
+            timeout=10.0,
+            token_strategy="first",
+            user_agent="Gateway-Test/1.0",
+        )
 
-    if final_token:
-        if service_key == "baidu" and (final_token.strip().startswith("{") or "BDUSS" in final_token):
-             headers["Authorization"] = final_token
-        else:
-             headers["Authorization"] = f"Bearer {final_token}"
-    
-    # Try a simple chat completion (Dry Run)
-    # We use a very short prompt to minimize cost/time
-    target_url = f"{url}/v1/chat/completions"
-    
-    # Pick a model
-    model = "gpt-3.5-turbo" # Default fallback
-    if service.get("models"):
-        model = service["models"][0]
-    
-    body["model"] = model
-    body["messages"] = [{"role": "user", "content": "Hi"}]
-    body["stream"] = False
-    body["max_tokens"] = 1
+@app.get("/api/monitor")
+async def monitor_services(timeout: float = 10.0):
+    """Run a probe against all configured upstream services and return a summary."""
+    config = load_config()
+    keys = list(config.keys())
+    checked_at = _now_iso_utc()
 
     async with httpx.AsyncClient() as client:
-        try:
-            # First, try models endpoint (lighter) if it supports it, BUT many free-api might not auth it correctly.
-            # So we go straight to chat completion to verify TOKEN.
-            
-            # Note: Some free APIs might be slow.
-            resp = await client.post(target_url, json=body, headers=headers, timeout=10)
-            
-            if resp.status_code == 200:
-                return {
-                    "status": "success",
-                    "code": resp.status_code,
-                    "url": url,
-                    "message": "Auth Valid! (Chat Check Passed)"
-                }
-            else:
-                # Try to read error
-                try:
-                    err_text = resp.text
-                    # Truncate
-                    if len(err_text) > 200: err_text = err_text[:200] + "..."
-                except:
-                    err_text = "Unknown error"
-                    
-                return {
-                    "status": "error",
-                    "code": resp.status_code,
-                    "url": url,
-                    "message": f"HTTP {resp.status_code}: {err_text}"
-                }
+        tasks = [
+            _probe_upstream(
+                client,
+                key,
+                config[key],
+                timeout=timeout,
+                token_strategy="first",
+                user_agent="Gateway-Monitor/1.0",
+            )
+            for key in keys
+        ]
+        results_list = await asyncio.gather(*tasks)
 
-        except Exception as e:
-            return {
-                "status": "error",
-                "message": f"Connection Error: {str(e)}",
-                "url": url
-            }
+    results = {k: v for k, v in zip(keys, results_list)}
+    ok = sum(1 for v in results.values() if v.get("status") == "success")
+    fail = len(results) - ok
+
+    return {
+        "checked_at": checked_at,
+        "timeout": timeout,
+        "summary": {"total": len(results), "ok": ok, "fail": fail},
+        "results": results,
+    }
 
 @app.get("/api/yuanbao/login/qrcode")
 async def yuanbao_login_qrcode():
@@ -255,60 +459,16 @@ async def proxy_chat_completions(request: Request):
 
     config = load_config()
     
-    # 简单的路由逻辑：遍历配置，查找支持该 model 的服务
-    # 或者如果 model 名字包含服务名，也可以作为 fallback
-    target_service = None
-    target_key = None
-    
-    # First pass: Exact match or Prefix match (explicitly configured models)
-    for key, service in config.items():
-        # 1. 精确匹配
-        if model in service.get("models", []):
-            target_service = service
-            target_key = key
-            break
-        # 3. 前缀匹配配置的模型 (e.g. moonshot-v1-8k-search matches moonshot-v1-8k)
-        for svc_model in service.get("models", []):
-            if model.startswith(svc_model):
-                target_service = service
-                target_key = key
-                break
-        if target_service:
-            break
-            
-    # Second pass: Fuzzy service name match (Only if no explicit match found)
-    if not target_service:
-        for key, service in config.items():
-            # 2. 服务名匹配 (e.g. deepseek-chat matches deepseek)
-            # CAUTION: This is dangerous if model name overlaps with service name but belongs to another service
-            # e.g. DeepSeek-R1 contains 'deepseek' but might be configured for 'baidu'
-            if key in model.lower():
-                 # Double check if this model is explicitly configured in another service? 
-                 # Too complex. Assuming explicit config is done in First Pass.
-                 target_service = service
-                 target_key = key
-                 break
-            
-    # 如果没找到，尝试默认 fallback (例如 baidu 的 DeepSeek-R1)
-    if not target_service:
-        # 特殊处理 DeepSeek-R1 -> Baidu
-        if model == "DeepSeek-R1" and "baidu" in config:
-            target_service = config["baidu"]
-            target_key = "baidu"
-        else:
-             # Default to first one or error? Let's error for now
-             pass
-
-    if not target_service:
-        # Try to guess based on prefix
-        for key in config:
-            if model.startswith(key):
-                target_service = config[key]
-                target_key = key
-                break
+    target_key, target_service = _select_service_for_model(config, model)
     
     if not target_service:
          raise HTTPException(status_code=404, detail=f"No service found for model: {model}")
+
+    if target_key == "jimeng":
+        raise HTTPException(
+            status_code=400,
+            detail="Jimeng is an image/video service. Use /v1/images/generations or /v1/videos/generations.",
+        )
 
     target_url = f"{target_service['url']}/v1/chat/completions"
         
@@ -500,6 +660,181 @@ async def proxy_chat_completions(request: Request):
             "Access-Control-Allow-Origin": "*",
         },
     )
+
+def _build_upstream_headers(
+    target_key: str,
+    target_service: Dict,
+    body: Optional[Dict] = None,
+    *,
+    content_type: str = "application/json",
+):
+    token_config = (target_service or {}).get("token")
+
+    selected_account = None
+    if isinstance(token_config, list) and len(token_config) > 0:
+        selected_account = random.choice(token_config)
+    elif isinstance(token_config, str) and token_config.strip():
+        selected_account = token_config
+
+    final_token = None
+    if selected_account:
+        if isinstance(selected_account, dict):
+            final_token = selected_account.get("hy_token") or selected_account.get("token")
+            if isinstance(body, dict):
+                for k, v in selected_account.items():
+                    if k not in ["token", "hy_token"]:
+                        body[k] = v
+        else:
+            final_token = selected_account
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    }
+    if content_type:
+        headers["Content-Type"] = content_type
+
+    if final_token:
+        if target_key == "baidu" and (final_token.strip().startswith("{") or "BDUSS" in final_token):
+            headers["Authorization"] = final_token
+        else:
+            headers["Authorization"] = f"Bearer {final_token}"
+    else:
+        logger.warning(f"No token configured for service {target_key}. Request sent without Authorization header.")
+
+    return headers
+
+@app.post("/v1/images/generations")
+async def proxy_images_generations(request: Request):
+    """OpenAI-compatible image generation (Jimeng)"""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    config = load_config()
+    model = body.get("model")
+
+    target_key = None
+    target_service = None
+    if model:
+        target_key, target_service = _select_service_for_model(config, model)
+
+    if not target_service:
+        if "jimeng" in config:
+            target_key = "jimeng"
+            target_service = config["jimeng"]
+            if not model:
+                # Keep behaviour aligned with Jimeng upstream defaults
+                body["model"] = "jimeng-4.5"
+                model = body["model"]
+        else:
+            raise HTTPException(status_code=404, detail=f"No service found for model: {model or '(missing model)'}")
+
+    target_url = f"{target_service['url']}/v1/images/generations"
+    headers = _build_upstream_headers(target_key, target_service, body, content_type="application/json")
+    logger.info(f"Routing image generation model={model} to {target_key} ({target_url})")
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(target_url, json=body, headers=headers, timeout=1800.0)
+        media_type = response.headers.get("Content-Type") or "application/json"
+        return Response(content=response.content, status_code=response.status_code, media_type=media_type)
+
+@app.post("/v1/images/compositions")
+async def proxy_images_compositions(request: Request):
+    """OpenAI-compatible image composition (Jimeng). Supports JSON and multipart."""
+    content_type = request.headers.get("Content-Type") or ""
+    is_json = "application/json" in content_type.lower()
+
+    config = load_config()
+    target_key = None
+    target_service = None
+    body_json = None
+    model = None
+
+    if is_json:
+        try:
+            body_json = await request.json()
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid JSON body")
+        if isinstance(body_json, dict):
+            model = body_json.get("model")
+            if model:
+                target_key, target_service = _select_service_for_model(config, model)
+
+    if not target_service:
+        if "jimeng" in config:
+            target_key = "jimeng"
+            target_service = config["jimeng"]
+        else:
+            raise HTTPException(status_code=404, detail="Jimeng service not configured")
+
+    target_url = f"{target_service['url']}/v1/images/compositions"
+    headers = _build_upstream_headers(
+        target_key,
+        target_service,
+        body_json if is_json else None,
+        content_type=content_type or ("application/json" if is_json else "application/octet-stream"),
+    )
+    logger.info(f"Routing image composition model={model or '-'} to {target_key} ({target_url})")
+
+    async with httpx.AsyncClient() as client:
+        if is_json:
+            resp = await client.post(target_url, json=body_json, headers=headers, timeout=1800.0)
+        else:
+            raw = await request.body()
+            resp = await client.post(target_url, content=raw, headers=headers, timeout=1800.0)
+        media_type = resp.headers.get("Content-Type") or "application/json"
+        return Response(content=resp.content, status_code=resp.status_code, media_type=media_type)
+
+@app.post("/v1/videos/generations")
+async def proxy_videos_generations(request: Request):
+    """OpenAI-compatible video generation (Jimeng). Supports JSON and multipart."""
+    content_type = request.headers.get("Content-Type") or ""
+    is_json = "application/json" in content_type.lower()
+
+    config = load_config()
+    target_key = None
+    target_service = None
+    body_json = None
+    model = None
+
+    if is_json:
+        try:
+            body_json = await request.json()
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid JSON body")
+        if isinstance(body_json, dict):
+            model = body_json.get("model")
+            if model:
+                target_key, target_service = _select_service_for_model(config, model)
+
+    if not target_service:
+        if "jimeng" in config:
+            target_key = "jimeng"
+            target_service = config["jimeng"]
+        else:
+            raise HTTPException(status_code=404, detail="Jimeng service not configured")
+
+    target_url = f"{target_service['url']}/v1/videos/generations"
+    headers = _build_upstream_headers(
+        target_key,
+        target_service,
+        body_json if is_json else None,
+        content_type=content_type or ("application/json" if is_json else "application/octet-stream"),
+    )
+    logger.info(f"Routing video generation model={model or '-'} to {target_key} ({target_url})")
+
+    async with httpx.AsyncClient() as client:
+        if is_json:
+            resp = await client.post(target_url, json=body_json, headers=headers, timeout=1800.0)
+        else:
+            raw = await request.body()
+            resp = await client.post(target_url, content=raw, headers=headers, timeout=1800.0)
+        media_type = resp.headers.get("Content-Type") or "application/json"
+        return Response(content=resp.content, status_code=resp.status_code, media_type=media_type)
 
 if __name__ == "__main__":
     import uvicorn

@@ -17,6 +17,7 @@ services:
       - doubao-free-api
       - yuanbao-free-api
       - baidu-free-api
+      - jimeng-api
 
   deepseek-free-api:
     container_name: deepseek-free-api
@@ -82,4 +83,11 @@ services:
       - BAIDU_COOKIE=  # 可以在这里填入 cookie，或者挂载 cookie.txt
     volumes:
       - ./BaiDu-AI-main/cookie.txt:/app/cookie.txt
+    restart: unless-stopped
+
+  jimeng-api:
+    container_name: jimeng-api
+    build: ./jimeng-api-main
+    ports:
+      - "5100:5100"
     restart: unless-stopped

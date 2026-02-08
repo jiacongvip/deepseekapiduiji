@@ -27,7 +27,14 @@
             <!-- Services will be injected here -->
         </div>
 
-        <div class="mt-8 flex justify-end gap-4">
+        <div class="mt-8 flex flex-wrap items-center justify-end gap-4">
+            <label class="flex items-center gap-2 text-sm text-gray-600 select-none">
+                <input id="auto-monitor-toggle" type="checkbox" class="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-indigo-500" onchange="toggleAutoMonitor()">
+                自动监控（60s）
+            </label>
+            <button onclick="monitorAll()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded shadow-lg transition duration-200">
+                一键监控
+            </button>
             <button onclick="openApiDocs()" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded shadow-lg transition duration-200 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -118,6 +125,28 @@ for chunk in response:
     ],
     "stream": true
   }'</code></pre>
+
+                <h4 class="text-base font-bold mt-6 mb-2">即梦出图示例 (cURL)</h4>
+                <pre><code class="language-bash">curl http://localhost:8888/v1/images/generations \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-any-string" \
+  -d '{
+    "model": "jimeng-4.5",
+    "prompt": "一只可爱的小猫咪",
+    "ratio": "1:1",
+    "resolution": "2k"
+  }'</code></pre>
+
+                <h4 class="text-base font-bold mt-6 mb-2">即梦视频示例 (cURL)</h4>
+                <pre><code class="language-bash">curl http://localhost:8888/v1/videos/generations \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-any-string" \
+  -d '{
+    "model": "jimeng-video-3.5-pro",
+    "prompt": "日落下的未来城市",
+    "ratio": "16:9",
+    "duration": 5
+  }'</code></pre>
             </div>
             <div class="p-4 border-t bg-gray-50 rounded-b-lg flex justify-end">
                 <button onclick="closeApiDocs()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded">关闭</button>
@@ -152,6 +181,114 @@ for chunk in response:
                         autocomplete="off">
                     <button onclick="sendMessage()" id="send-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded-lg transition-colors">
                         发送
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Jimeng Image Modal -->
+    <div id="image-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 flex">
+        <div class="bg-white w-11/12 max-w-4xl h-5/6 rounded-lg shadow-2xl flex flex-col relative">
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800" id="image-title">Image Test</h3>
+                    <p class="text-xs text-gray-500" id="image-subtitle">Model: -</p>
+                </div>
+                <button onclick="closeImage()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            </div>
+
+            <div id="image-result" class="flex-1 overflow-y-auto p-6 space-y-4">
+                <div class="text-center text-gray-400 mt-10">在这里测试即梦出图接口</div>
+            </div>
+
+            <div class="p-4 border-t bg-gray-50 rounded-b-lg space-y-2">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+                    <input type="text" id="image-model" class="border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="模型 (jimeng-4.5)">
+                    <select id="image-ratio" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="1:1">ratio 1:1</option>
+                        <option value="4:3">ratio 4:3</option>
+                        <option value="3:4">ratio 3:4</option>
+                        <option value="16:9">ratio 16:9</option>
+                        <option value="9:16">ratio 9:16</option>
+                        <option value="3:2">ratio 3:2</option>
+                        <option value="2:3">ratio 2:3</option>
+                        <option value="21:9">ratio 21:9</option>
+                    </select>
+                    <select id="image-resolution" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="2k">resolution 2k</option>
+                        <option value="1k">resolution 1k</option>
+                        <option value="4k">resolution 4k</option>
+                    </select>
+                    <select id="image-response-format" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="url">response_format url</option>
+                        <option value="b64_json">response_format b64_json</option>
+                    </select>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 px-1">
+                        <input id="image-intelligent-ratio" type="checkbox" class="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-indigo-500">
+                        智能比例
+                    </label>
+                </div>
+
+                <textarea id="image-prompt" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="输入提示词..."></textarea>
+
+                <div class="flex justify-end gap-2">
+                    <button onclick="generateImage()" id="image-send-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2 rounded-lg transition-colors">
+                        生成
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Jimeng Video Modal -->
+    <div id="video-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 flex">
+        <div class="bg-white w-11/12 max-w-4xl h-5/6 rounded-lg shadow-2xl flex flex-col relative">
+            <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800" id="video-title">Video Test</h3>
+                    <p class="text-xs text-gray-500" id="video-subtitle">Model: -</p>
+                </div>
+                <button onclick="closeVideo()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            </div>
+
+            <div id="video-result" class="flex-1 overflow-y-auto p-6 space-y-4">
+                <div class="text-center text-gray-400 mt-10">在这里测试即梦视频接口（文生视频）</div>
+            </div>
+
+            <div class="p-4 border-t bg-gray-50 rounded-b-lg space-y-2">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+                    <input type="text" id="video-model" class="border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="模型 (jimeng-video-3.5-pro)">
+                    <select id="video-ratio" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="1:1">ratio 1:1</option>
+                        <option value="4:3">ratio 4:3</option>
+                        <option value="3:4">ratio 3:4</option>
+                        <option value="16:9">ratio 16:9</option>
+                        <option value="9:16">ratio 9:16</option>
+                        <option value="21:9">ratio 21:9</option>
+                    </select>
+                    <select id="video-resolution" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="720p">resolution 720p</option>
+                        <option value="1080p">resolution 1080p</option>
+                    </select>
+                    <select id="video-duration" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="5">duration 5s</option>
+                        <option value="10">duration 10s</option>
+                        <option value="15">duration 15s</option>
+                        <option value="8">duration 8s</option>
+                        <option value="12">duration 12s</option>
+                    </select>
+                    <select id="video-response-format" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="url">response_format url</option>
+                        <option value="b64_json">response_format b64_json</option>
+                    </select>
+                </div>
+
+                <textarea id="video-prompt" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="输入提示词..."></textarea>
+
+                <div class="flex justify-end gap-2">
+                    <button onclick="generateVideo()" id="video-send-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-2 rounded-lg transition-colors">
+                        生成
                     </button>
                 </div>
             </div>
@@ -260,6 +397,19 @@ for chunk in response:
                     <li>获取请求体 (Payload) 中的 <code>agent_id</code>。</li>
                 </ol>
             `,
+            jimeng: `
+                <ol class="list-decimal pl-5 space-y-2">
+                    <li>打开 即梦AI（国内站）或 dreamina（国际站）并登录。</li>
+                    <li>按 <code>F12</code> 打开开发者工具，切换到 <strong>Application</strong> / <strong>Cookies</strong>。</li>
+                    <li>找到并复制 <code>sessionid</code>（或站点登录后生成的 session 标识）。</li>
+                    <li>把 sessionid 粘贴到本页面 <strong>账号列表</strong> 中保存。</li>
+                </ol>
+                <div class="mt-2 p-2 bg-gray-100 rounded text-xs text-gray-600 space-y-1">
+                    <div><strong>地区前缀</strong>：国际站需要在 token 前加 <code>us-</code>/<code>hk-</code>/<code>jp-</code>/<code>sg-</code>（示例：<code>us-your_sessionid</code>）。</div>
+                    <div><strong>代理绑定</strong>：<code>socks5://127.0.0.1:1080@us-your_sessionid</code></div>
+                    <div>参考：<a class="underline" href="https://github.com/iptag/jimeng-api/blob/main/get_sessionid.png" target="_blank">get_sessionid.png</a></div>
+                </div>
+            `,
             baidu: `
                 <ol class="list-decimal pl-5 space-y-2">
                     <li>访问 <a href="https://chat.baidu.com/" target="_blank">百度文心一言</a> 并登录。</li>
@@ -271,9 +421,11 @@ for chunk in response:
             `
         };
 
-        let currentConfig = {};
-        let currentModel = '';
-        let chatHistory = [];
+	        let currentConfig = {};
+	        let currentModel = '';
+	        let chatHistory = [];
+	        let currentImageModel = '';
+	        let currentVideoModel = '';
 
         let yuanbaoPollInterval = null;
         let currentYuanbaoKey = null;
@@ -536,7 +688,7 @@ for chunk in response:
                             </div>
                         ` : `
                             <div class="flex gap-2">
-                                <textarea id="new-token-${key}" rows="3" class="flex-1 shadow-sm border rounded py-1 px-2 text-sm font-mono" placeholder="${key === 'baidu' ? '请输入完整 Cookie JSON 或字符串' : '请输入 Token / Cookie'}"></textarea>
+                                <textarea id="new-token-${key}" rows="3" class="flex-1 shadow-sm border rounded py-1 px-2 text-sm font-mono" placeholder="${key === 'baidu' ? '请输入完整 Cookie JSON 或字符串' : (key === 'jimeng' ? '请输入 sessionid（可加 us-/hk-/jp-/sg- 前缀或 代理@...）' : '请输入 Token / Cookie')}"></textarea>
                             </div>
                             <div class="mt-2 flex justify-end">
                                 <button onclick="confirmAddAccount('${key}')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded">
@@ -558,11 +710,20 @@ for chunk in response:
 
                 card.innerHTML = `
                     <div class="flex justify-between items-center mb-4">
-                        <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-3 flex-wrap">
                             <h2 class="text-xl font-semibold text-gray-700 capitalize">${key} 服务</h2>
-                            <button onclick="openChatByService('${key}')" class="bg-green-100 hover:bg-green-200 text-green-700 text-xs font-bold py-1 px-3 rounded flex items-center gap-1 transition-colors">
-                                💬 测试聊天
-                            </button>
+                            ${key === 'jimeng' ? `
+                                <button onclick="openImageByService('${key}')" class="bg-green-100 hover:bg-green-200 text-green-700 text-xs font-bold py-1 px-3 rounded flex items-center gap-1 transition-colors">
+                                    🖼️ 测试出图
+                                </button>
+                                <button onclick="openVideoByService('${key}')" class="bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs font-bold py-1 px-3 rounded flex items-center gap-1 transition-colors">
+                                    🎬 测试视频
+                                </button>
+                            ` : `
+                                <button onclick="openChatByService('${key}')" class="bg-green-100 hover:bg-green-200 text-green-700 text-xs font-bold py-1 px-3 rounded flex items-center gap-1 transition-colors">
+                                    💬 测试聊天
+                                </button>
+                            `}
                         </div>
                         <span class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded truncate max-w-[200px]">${service.url}</span>
                     </div>
@@ -621,13 +782,72 @@ for chunk in response:
                 const data = await res.json();
                 
                 if (data.status === 'success') {
-                    statusSpan.innerHTML = `<span class="text-green-600 font-bold">✓ Connected (HTTP ${data.code})</span>`;
+                    const latency = typeof data.latency_ms === 'number' ? ` • ${data.latency_ms}ms` : '';
+                    statusSpan.innerHTML = `<span class="text-green-600 font-bold">✓ Connected (HTTP ${data.code})${latency}</span>`;
                 } else {
                     statusSpan.innerHTML = `<span class="text-red-600 font-bold">✗ Failed: ${data.message}</span>`;
                 }
             } catch (e) {
                 statusSpan.innerHTML = `<span class="text-red-600 font-bold">✗ Error: ${e.message}</span>`;
             }
+        }
+
+        let autoMonitorTimer = null;
+        const AUTO_MONITOR_INTERVAL_MS = 60 * 1000;
+
+        async function monitorAll({ silent = false } = {}) {
+            if (!currentConfig || typeof currentConfig !== 'object') return;
+
+            // Pre-fill status
+            for (const key of Object.keys(currentConfig)) {
+                const statusSpan = document.getElementById(`test-status-${key}`);
+                if (statusSpan) statusSpan.innerHTML = '<span class="animate-pulse text-gray-500">Checking...</span>';
+            }
+
+            try {
+                const res = await fetch(`/api/monitor?timeout=10`);
+                const data = await res.json();
+                const results = data?.results || {};
+
+                for (const [key, result] of Object.entries(results)) {
+                    const statusSpan = document.getElementById(`test-status-${key}`);
+                    if (!statusSpan) continue;
+
+                    if (result?.status === 'success') {
+                        const code = result?.code ? `HTTP ${result.code}` : 'OK';
+                        const latency = typeof result.latency_ms === 'number' ? `${result.latency_ms}ms` : '';
+                        statusSpan.innerHTML = `<span class="text-green-600 font-bold">✓ ${code}${latency ? ' • ' + latency : ''}</span>`;
+                    } else {
+                        const msg = result?.message || 'Failed';
+                        statusSpan.innerHTML = `<span class="text-red-600 font-bold">✗ ${msg}</span>`;
+                    }
+                }
+            } catch (e) {
+                if (!silent) alert(`监控失败: ${e.message || e}`);
+            }
+        }
+
+        function toggleAutoMonitor() {
+            const el = document.getElementById('auto-monitor-toggle');
+            const enabled = !!el?.checked;
+            localStorage.setItem('autoMonitorEnabled', enabled ? '1' : '0');
+
+            if (autoMonitorTimer) {
+                clearInterval(autoMonitorTimer);
+                autoMonitorTimer = null;
+            }
+
+            if (enabled) {
+                monitorAll({ silent: true });
+                autoMonitorTimer = setInterval(() => monitorAll({ silent: true }), AUTO_MONITOR_INTERVAL_MS);
+            }
+        }
+
+        function initAutoMonitor() {
+            const enabled = localStorage.getItem('autoMonitorEnabled') === '1';
+            const el = document.getElementById('auto-monitor-toggle');
+            if (el) el.checked = enabled;
+            if (enabled) toggleAutoMonitor();
         }
 
         function openApiDocs() {
@@ -647,6 +867,7 @@ for chunk in response:
                 qwen: '通义千问 Token 获取指南',
                 doubao: '豆包 Token 获取指南',
                 yuanbao: '腾讯元宝 Token 获取指南',
+                jimeng: '即梦 Jimeng SessionID 获取指南',
                 baidu: '百度文心一言 Cookie 获取指南'
             };
             document.getElementById('help-title').innerText = titleMap[key] || '获取指南';
@@ -866,13 +1087,301 @@ for chunk in response:
              }, 1500);
         }
 
-        // --- End Account Management Functions ---
+	        // --- End Account Management Functions ---
 
-        // --- Chat Functions ---
+	        // --- Jimeng Image/Video Functions ---
+	
+	        function openImageByService(serviceKey) {
+	            const modelsStr = document.getElementById(`models-${serviceKey}`)?.value || '';
+	            const models = modelsStr.split(',').map(s => s.trim()).filter(s => s);
+	            const imageModel = models.find(m => !m.startsWith('jimeng-video')) || models[0] || '';
+	            openImage(imageModel);
+	        }
+	
+	        function openImage(model) {
+	            if (!model) {
+	                alert('该服务未配置模型名称，无法测试出图。');
+	                return;
+	            }
+	            currentImageModel = model;
+	            document.getElementById('image-title').innerText = `Jimeng Image: ${model}`;
+	            document.getElementById('image-subtitle').innerText = `正在使用模型: ${model}`;
+	            document.getElementById('image-model').value = model;
+	            document.getElementById('image-ratio').value = '1:1';
+	            document.getElementById('image-resolution').value = '2k';
+	            document.getElementById('image-response-format').value = 'url';
+	            document.getElementById('image-intelligent-ratio').checked = false;
+	            document.getElementById('image-prompt').value = '';
+	            document.getElementById('image-result').innerHTML = '<div class="text-center text-gray-400 mt-10">输入提示词并点击“生成”</div>';
+	            document.getElementById('image-modal').classList.remove('hidden');
+	            document.getElementById('image-prompt').focus();
+	        }
+	
+	        function closeImage() {
+	            document.getElementById('image-modal').classList.add('hidden');
+	        }
+	
+	        async function generateImage() {
+	            const prompt = document.getElementById('image-prompt').value.trim();
+	            if (!prompt) return;
+	
+	            const model = document.getElementById('image-model').value.trim() || currentImageModel;
+	            const ratio = document.getElementById('image-ratio').value;
+	            const resolution = document.getElementById('image-resolution').value;
+	            const responseFormat = document.getElementById('image-response-format').value;
+	            const intelligentRatio = !!document.getElementById('image-intelligent-ratio').checked;
+	
+	            const btn = document.getElementById('image-send-btn');
+	            btn.disabled = true;
+	            btn.classList.add('opacity-50');
+	
+	            const result = document.getElementById('image-result');
+	            result.innerHTML = '<div class="text-gray-500 animate-pulse">生成中，请稍候...</div>';
+	
+	            try {
+	                const payload = {
+	                    model,
+	                    prompt,
+	                    ratio,
+	                    resolution,
+	                    response_format: responseFormat,
+	                    intelligent_ratio: intelligentRatio
+	                };
+	
+	                const res = await fetch('/v1/images/generations', {
+	                    method: 'POST',
+	                    headers: { 'Content-Type': 'application/json' },
+	                    body: JSON.stringify(payload)
+	                });
+	
+	                const text = await res.text();
+	                let data = null;
+	                try { data = JSON.parse(text); } catch (e) {}
+	
+	                if (!res.ok) {
+	                    result.innerHTML = '';
+	                    const err = document.createElement('div');
+	                    err.className = 'text-red-600 font-bold';
+	                    err.textContent = `✗ API Error ${res.status}`;
+	                    result.appendChild(err);
+	                    const pre = document.createElement('pre');
+	                    pre.className = 'mt-2 text-xs bg-gray-100 p-3 rounded overflow-x-auto';
+	                    pre.textContent = text;
+	                    result.appendChild(pre);
+	                    return;
+	                }
+	
+	                result.innerHTML = '';
+	                const meta = document.createElement('div');
+	                meta.className = 'text-sm text-gray-600';
+	                meta.textContent = `✓ 成功返回（model=${model}）`;
+	                result.appendChild(meta);
+	
+	                const grid = document.createElement('div');
+	                grid.className = 'grid grid-cols-1 md:grid-cols-2 gap-4 mt-3';
+	
+	                const items = Array.isArray(data?.data) ? data.data : [];
+	                if (items.length === 0) {
+	                    const empty = document.createElement('div');
+	                    empty.className = 'text-gray-500';
+	                    empty.textContent = '未返回图片数据。';
+	                    result.appendChild(empty);
+	                } else {
+	                    items.forEach((item, idx) => {
+	                        const card = document.createElement('div');
+	                        card.className = 'bg-white border rounded-lg p-3 shadow-sm';
+	
+	                        const title = document.createElement('div');
+	                        title.className = 'text-xs text-gray-500 mb-2';
+	                        title.textContent = `#${idx + 1}`;
+	                        card.appendChild(title);
+	
+	                        if (item?.url) {
+	                            const a = document.createElement('a');
+	                            a.href = item.url;
+	                            a.target = '_blank';
+	                            a.className = 'text-xs text-blue-600 underline break-all';
+	                            a.textContent = item.url;
+	                            card.appendChild(a);
+	
+	                            const img = document.createElement('img');
+	                            img.src = item.url;
+	                            img.className = 'mt-2 w-full rounded';
+	                            img.loading = 'lazy';
+	                            card.appendChild(img);
+	                        } else if (item?.b64_json) {
+	                            const img = document.createElement('img');
+	                            img.src = `data:image/png;base64,${item.b64_json}`;
+	                            img.className = 'w-full rounded';
+	                            img.loading = 'lazy';
+	                            card.appendChild(img);
+	                        } else {
+	                            const unknown = document.createElement('div');
+	                            unknown.className = 'text-xs text-gray-500';
+	                            unknown.textContent = '未知返回格式。';
+	                            card.appendChild(unknown);
+	                        }
+	
+	                        grid.appendChild(card);
+	                    });
+	                    result.appendChild(grid);
+	                }
+	
+	                const details = document.createElement('details');
+	                details.className = 'mt-4';
+	                const summary = document.createElement('summary');
+	                summary.className = 'cursor-pointer text-sm text-gray-600';
+	                summary.textContent = '查看原始响应';
+	                details.appendChild(summary);
+	                const pre = document.createElement('pre');
+	                pre.className = 'mt-2 text-xs bg-gray-100 p-3 rounded overflow-x-auto';
+	                pre.textContent = data ? JSON.stringify(data, null, 2) : text;
+	                details.appendChild(pre);
+	                result.appendChild(details);
+	
+	            } catch (e) {
+	                result.innerHTML = `<div class="text-red-600 font-bold">✗ Error: ${e.message || e}</div>`;
+	            } finally {
+	                btn.disabled = false;
+	                btn.classList.remove('opacity-50');
+	            }
+	        }
+	
+		        function openVideoByService(serviceKey) {
+		            const modelsStr = document.getElementById(`models-${serviceKey}`)?.value || '';
+		            const models = modelsStr.split(',').map(s => s.trim()).filter(s => s);
+		            const videoModel = models.find(m => m === 'jimeng-video-3.5-pro') || models.find(m => m.startsWith('jimeng-video')) || models[0] || '';
+		            openVideo(videoModel);
+		        }
+	
+	        function openVideo(model) {
+	            if (!model) {
+	                alert('该服务未配置模型名称，无法测试视频。');
+	                return;
+	            }
+	            currentVideoModel = model;
+	            document.getElementById('video-title').innerText = `Jimeng Video: ${model}`;
+	            document.getElementById('video-subtitle').innerText = `正在使用模型: ${model}`;
+	            document.getElementById('video-model').value = model;
+	            document.getElementById('video-ratio').value = '16:9';
+	            document.getElementById('video-resolution').value = '720p';
+	            document.getElementById('video-duration').value = '5';
+	            document.getElementById('video-response-format').value = 'url';
+	            document.getElementById('video-prompt').value = '';
+	            document.getElementById('video-result').innerHTML = '<div class="text-center text-gray-400 mt-10">输入提示词并点击“生成”</div>';
+	            document.getElementById('video-modal').classList.remove('hidden');
+	            document.getElementById('video-prompt').focus();
+	        }
+	
+	        function closeVideo() {
+	            document.getElementById('video-modal').classList.add('hidden');
+	        }
+	
+	        async function generateVideo() {
+	            const prompt = document.getElementById('video-prompt').value.trim();
+	            if (!prompt) return;
+	
+	            const model = document.getElementById('video-model').value.trim() || currentVideoModel;
+	            const ratio = document.getElementById('video-ratio').value;
+	            const resolution = document.getElementById('video-resolution').value;
+	            const duration = parseInt(document.getElementById('video-duration').value, 10);
+	            const responseFormat = document.getElementById('video-response-format').value;
+	
+	            const btn = document.getElementById('video-send-btn');
+	            btn.disabled = true;
+	            btn.classList.add('opacity-50');
+	
+	            const result = document.getElementById('video-result');
+	            result.innerHTML = '<div class="text-gray-500 animate-pulse">生成中（可能需要较长时间），请稍候...</div>';
+	
+	            try {
+	                const payload = {
+	                    model,
+	                    prompt,
+	                    ratio,
+	                    resolution,
+	                    duration,
+	                    response_format: responseFormat
+	                };
+	
+	                const res = await fetch('/v1/videos/generations', {
+	                    method: 'POST',
+	                    headers: { 'Content-Type': 'application/json' },
+	                    body: JSON.stringify(payload)
+	                });
+	
+	                const text = await res.text();
+	                let data = null;
+	                try { data = JSON.parse(text); } catch (e) {}
+	
+	                if (!res.ok) {
+	                    result.innerHTML = '';
+	                    const err = document.createElement('div');
+	                    err.className = 'text-red-600 font-bold';
+	                    err.textContent = `✗ API Error ${res.status}`;
+	                    result.appendChild(err);
+	                    const pre = document.createElement('pre');
+	                    pre.className = 'mt-2 text-xs bg-gray-100 p-3 rounded overflow-x-auto';
+	                    pre.textContent = text;
+	                    result.appendChild(pre);
+	                    return;
+	                }
+	
+	                result.innerHTML = '';
+	                const meta = document.createElement('div');
+	                meta.className = 'text-sm text-gray-600';
+	                meta.textContent = `✓ 成功返回（model=${model}）`;
+	                result.appendChild(meta);
+	
+	                const items = Array.isArray(data?.data) ? data.data : [];
+	                const first = items[0] || {};
+	                if (first?.url) {
+	                    const a = document.createElement('a');
+	                    a.href = first.url;
+	                    a.target = '_blank';
+	                    a.className = 'text-sm text-blue-600 underline break-all mt-2 inline-block';
+	                    a.textContent = first.url;
+	                    result.appendChild(a);
+	
+	                    const video = document.createElement('video');
+	                    video.src = first.url;
+	                    video.controls = true;
+	                    video.className = 'mt-3 w-full rounded bg-black';
+	                    result.appendChild(video);
+	                } else {
+	                    const tip = document.createElement('div');
+	                    tip.className = 'text-gray-500 mt-2';
+	                    tip.textContent = '未返回视频 URL（或返回格式非 url）。';
+	                    result.appendChild(tip);
+	                }
+	
+	                const details = document.createElement('details');
+	                details.className = 'mt-4';
+	                const summary = document.createElement('summary');
+	                summary.className = 'cursor-pointer text-sm text-gray-600';
+	                summary.textContent = '查看原始响应';
+	                details.appendChild(summary);
+	                const pre = document.createElement('pre');
+	                pre.className = 'mt-2 text-xs bg-gray-100 p-3 rounded overflow-x-auto';
+	                pre.textContent = data ? JSON.stringify(data, null, 2) : text;
+	                details.appendChild(pre);
+	                result.appendChild(details);
+	
+	            } catch (e) {
+	                result.innerHTML = `<div class="text-red-600 font-bold">✗ Error: ${e.message || e}</div>`;
+	            } finally {
+	                btn.disabled = false;
+	                btn.classList.remove('opacity-50');
+	            }
+	        }
+	
+	        // --- End Jimeng Image/Video Functions ---
 
-        function openChatByService(serviceKey) {
-            const modelsStr = document.getElementById(`models-${serviceKey}`)?.value || '';
-            const firstModel = modelsStr.split(',').map(s => s.trim()).filter(s => s)[0] || '';
+	        // --- Chat Functions ---
+
+	        function openChatByService(serviceKey) {
+	            const modelsStr = document.getElementById(`models-${serviceKey}`)?.value || '';
+	            const firstModel = modelsStr.split(',').map(s => s.trim()).filter(s => s)[0] || '';
             openChat(firstModel);
         }
 
@@ -1212,7 +1721,7 @@ for chunk in response:
             }
         }
 
-        loadConfig();
+        loadConfig().then(() => initAutoMonitor());
     </script>
 </body>
 </html>

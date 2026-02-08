@@ -13,6 +13,7 @@
 | **Doubao** | doubao-free-api-llm | `8005` | 8000 | 字节跳动豆包免费 API |
 | **Yuanbao** | yuanbao-free-api | `8006` | 8003 | 腾讯元宝免费 API |
 | **Baidu** | BaiDu-AI-main | `8007` | 8000 | 百度 AI (基于网页版逆向) |
+| **Jimeng** | jimeng-api | `5100` | 5100 | 即梦AI 图像/视频生成 API |
 
 ## 快速开始
 

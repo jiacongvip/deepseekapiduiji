@@ -1,5 +1,11 @@
 .history
+.DS_Store
 DoubaoFreeApi/venv/
 venv/
 DoubaoFreeApi/venv/
 venv/
+node_modules/
+dist/
+logs/
+tmp/
+_tmp_*
